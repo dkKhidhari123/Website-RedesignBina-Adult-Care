@@ -1,0 +1,238 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ─────────────────────────────────────────────────────────────
+   Bina Adult Care — design system (see DESIGN.md)
+   Theme: Dusty Blue & Soft White
+   Type: DM Serif Display (headings) · DM Sans (text & buttons) · Dancing Script (logo tagline)
+   Motion: 200ms UI · 700ms reveal · 900ms crossfade · 5s autoplay
+   ───────────────────────────────────────────────────────────── */
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+    scroll-behavior: smooth;
+    scroll-padding-top: 6.5rem;
+  }
+  body {
+    @apply bg-cream font-sans text-base leading-[1.6] text-slate antialiased;
+  }
+  h1,
+  h2,
+  h3 {
+    @apply font-display font-normal tracking-[-0.01em] text-navy;
+    text-wrap: balance;
+  }
+  h4 {
+    @apply font-sans font-semibold text-navy;
+  }
+  p,
+  li {
+    text-wrap: pretty;
+  }
+  strong {
+    @apply font-semibold text-navy;
+  }
+  a {
+    @apply transition-colors;
+  }
+  :focus-visible {
+    @apply outline-none ring-2 ring-brand-600 ring-offset-2;
+  }
+  ::selection {
+    @apply bg-brand-50 text-navy;
+  }
+}
+
+@layer components {
+  /* Type scale */
+  .t-display {
+    @apply font-display font-normal tracking-[-0.02em] text-navy;
+    font-size: clamp(2.25rem, 1.4rem + 3vw, 3.5rem);
+    line-height: 1.1;
+  }
+  .t-page {
+    @apply font-display font-normal tracking-[-0.02em] text-navy;
+    font-size: clamp(2.25rem, 1.5rem + 2.6vw, 3.25rem);
+    line-height: 1.1;
+  }
+  .t-section {
+    @apply font-display font-normal tracking-[-0.01em] text-navy;
+    font-size: clamp(1.625rem, 1.2rem + 1.5vw, 2.25rem);
+    line-height: 1.2;
+  }
+  .t-title {
+    @apply font-display text-[1.375rem] font-normal leading-snug text-navy;
+  }
+  .t-subtitle {
+    @apply font-display text-[1.0625rem] font-normal leading-snug text-navy;
+  }
+  .t-lead {
+    @apply text-[1.0625rem] leading-[1.65] text-slate-muted;
+  }
+  .t-small {
+    @apply text-[0.90625rem] leading-relaxed text-slate-muted;
+  }
+  .accent {
+    @apply font-display not-italic text-brand-600;
+  }
+  /* Pill label above headings ("TRUSTED SENIOR CARE") */
+  .eyebrow,
+  .pill-label {
+    @apply inline-block rounded-full bg-brand-50 px-3.5 py-1.5 text-[0.75rem] font-semibold uppercase tracking-[0.14em] text-brand-700 ring-1 ring-brand-200/60;
+  }
+  .eyebrow-plain {
+    @apply text-[0.75rem] font-semibold uppercase tracking-[0.14em] text-brand-700;
+  }
+
+  /* Layout */
+  .section {
+    @apply px-0 py-20 sm:py-24;
+  }
+  .section-sm {
+    @apply py-14 sm:py-16;
+  }
+  .section-head {
+    @apply mx-auto mb-12 max-w-[560px] text-center;
+  }
+  .card {
+    @apply rounded-card border border-line bg-white shadow-soft;
+  }
+  /* Soft Blue feature card — body text switches to navy for contrast */
+  .card-soft {
+    @apply rounded-card bg-brand-200/70 text-navy;
+  }
+  .card-soft .t-small {
+    @apply text-navy;
+  }
+  /* Small Warm Champagne rule used as a decorative detail under headings */
+  .gold-rule {
+    @apply mx-auto mt-5 block h-[3px] w-12 rounded-full bg-champagne;
+  }
+
+  /* Buttons — pill, Young Serif */
+  .btn {
+    @apply inline-flex min-h-[48px] select-none items-center justify-center gap-2 rounded-full px-[1.625rem] font-sans text-[0.9375rem] font-semibold leading-none tracking-[0.01em] transition-[background-color,border-color,color,box-shadow,transform] duration-200 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-60;
+  }
+  .btn-primary {
+    @apply btn bg-brand-600 text-white shadow-[0_6px_16px_-8px_rgba(82,125,150,0.7)] hover:bg-brand-700;
+  }
+  .btn-secondary {
+    @apply btn border border-brand-400 bg-white text-brand-700 hover:bg-brand-50;
+  }
+  /* Premium accent — Warm Champagne with Deep Navy text */
+  .btn-accent {
+    @apply btn bg-champagne text-navy hover:bg-champagne-600;
+  }
+  .btn-navy {
+    @apply btn bg-navy text-white hover:bg-navy-800;
+  }
+  .btn-light {
+    @apply btn bg-white text-navy hover:bg-brand-50;
+  }
+  .btn-outline-light {
+    @apply btn border border-white text-white hover:bg-white hover:text-navy;
+  }
+  .btn-sm {
+    @apply min-h-[40px] px-[1.125rem] text-[0.8125rem];
+  }
+
+  .text-link {
+    @apply inline-flex items-center gap-1.5 font-semibold text-brand-700 underline decoration-brand-400/40 underline-offset-[5px] hover:text-navy hover:decoration-navy;
+  }
+
+  /* Check list with blue circle-check */
+  .check-list > li {
+    @apply relative pl-8;
+  }
+  .check-list > li::before {
+    content: '';
+    @apply absolute left-0 top-[0.2em] h-[1.15rem] w-[1.15rem] rounded-full border-2 border-brand-400;
+  }
+  .check-list > li::after {
+    content: '';
+    @apply absolute left-[0.42rem] top-[0.42em] h-[0.45rem] w-[0.26rem] rotate-45 border-b-2 border-r-2 border-brand-400;
+  }
+
+  /* Media */
+  .media {
+    @apply overflow-hidden rounded-media bg-brand-50;
+  }
+  .zoom-on-hover img {
+    @apply transition-transform duration-700 ease-gentle;
+  }
+  .zoom-on-hover:hover img {
+    @apply scale-[1.04];
+  }
+
+  /* Forms */
+  .field-label {
+    @apply mb-1.5 block text-[0.875rem] font-medium text-navy;
+  }
+  .field-hint {
+    @apply font-normal text-slate-muted;
+  }
+  .field {
+    @apply block w-full rounded-xl border border-line-strong bg-white px-3.5 py-3 text-[0.9375rem] text-navy transition-colors placeholder:text-slate/70 hover:border-brand-400 focus:border-brand-600 focus:outline-none focus:ring-4 focus:ring-brand-400/20;
+  }
+  .field[aria-invalid='true'] {
+    @apply border-red-700 focus:ring-red-700/15;
+  }
+  .field-error {
+    @apply mt-1.5 text-[0.8125rem] text-red-800;
+  }
+  .choice {
+    @apply flex min-h-[48px] cursor-pointer items-center gap-3 rounded-xl border border-line-strong bg-white px-4 text-[0.9375rem] font-medium text-navy transition-colors hover:border-navy/30 has-[:checked]:border-brand-600 has-[:checked]:bg-brand-50 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-brand-600;
+  }
+
+  /* Teal call-to-action box used at the end of pages */
+  .cta-box {
+    @apply mx-auto max-w-[1000px] rounded-panel bg-brand-600 px-6 py-12 text-center text-white sm:px-12 sm:py-16 lg:py-[4.5rem];
+  }
+
+  /* Long-form text (privacy, terms) */
+  .prose-legal h2 {
+    @apply mt-12 font-display text-2xl text-navy;
+  }
+  .prose-legal p,
+  .prose-legal ul {
+    @apply mt-4;
+  }
+  .prose-legal ul {
+    @apply list-disc space-y-2 pl-6;
+  }
+  .prose-legal a {
+    @apply text-link;
+  }
+}
+
+/* Scroll reveal — progressive enhancement; content is visible without JS. */
+.js-reveal .reveal:not(.is-visible) {
+  opacity: 0;
+  transform: translateY(16px);
+}
+.js-reveal .reveal {
+  transition:
+    opacity 0.7s cubic-bezier(0.22, 0.61, 0.36, 1),
+    transform 0.7s cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+  .js-reveal .reveal:not(.is-visible) {
+    opacity: 1;
+    transform: none;
+  }
+  .marquee-track {
+    animation: none !important;
+  }
+}
