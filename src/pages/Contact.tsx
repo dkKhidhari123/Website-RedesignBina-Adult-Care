@@ -3,7 +3,7 @@ import { Clock, ContactRound, ExternalLink, Mail, MapPin, Phone } from 'lucide-r
 import { PageHero } from '../components/PageHero';
 import { CtaBand } from '../components/CtaBand';
 import { ContactForm } from '../components/forms/ContactForm';
-import { bookVisitHref, businessCardUrl, fullAddress, mapsEmbed, mapsLink, site } from '../data/site';
+import { bookVisitHref, businessCardHref, fullAddress, mapsEmbed, mapsLink, site } from '../data/site';
 
 export function ContactDetails({ withHours = true }: { withHours?: boolean }) {
   const rows = [
@@ -55,16 +55,10 @@ export default function Contact() {
             <h2 className="t-title text-[1.5rem]">Contact Information</h2>
             <p className="mb-7 mt-1.5 text-[0.9375rem] text-slate-muted">We’re available 24/7 to answer your questions and provide support.</p>
             <ContactDetails />
-            <a
-              href={businessCardUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="btn-secondary mt-8 w-full"
-            >
+            <Link to={businessCardHref} className="btn-secondary mt-8 w-full">
               <ContactRound className="h-[18px] w-[18px]" aria-hidden />
               View Our Business Card
-              <span className="sr-only">(opens in a new tab)</span>
-            </a>
+            </Link>
           </aside>
         </div>
       </section>

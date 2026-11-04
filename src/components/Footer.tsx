@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import { ContactRound, Facebook, Instagram, Linkedin, Mail, MapPin, Phone } from 'lucide-react';
-import { bookVisitHref, businessCardUrl, fullAddress, nav, site } from '../data/site';
+import { bookVisitHref, businessCardHref, fullAddress, nav, site } from '../data/site';
 
 function Heading({ children }: { children: string }) {
   return <h2 className="mb-3.5 font-sans text-[0.875rem] font-semibold text-white">{children}</h2>;
@@ -21,7 +21,7 @@ export function Footer() {
           <nav aria-label="Quick links">
             <Heading>Quick Links</Heading>
             <ul className="flex flex-col gap-2.5">
-              {[...nav, { to: '/about', label: 'About Us' }, { to: '/digital-business-card', label: 'Digital Business Card' }].map((n) => (
+              {[...nav, { to: '/about', label: 'About Us' }, { to: businessCardHref, label: 'Digital Business Card' }].map((n) => (
                 <li key={n.to}>
                   <Link to={n.to} className={link}>{n.label}</Link>
                 </li>
@@ -55,16 +55,10 @@ export function Footer() {
                 <li className={row}><Linkedin className={icon} aria-hidden /><a href={site.social.linkedin.url} target="_blank" rel="noopener noreferrer" className={link}>LinkedIn</a></li>
               )}
             </ul>
-            <a
-              href={businessCardUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="btn-outline-light btn-sm mt-6 border-champagne/70 text-champagne hover:border-champagne hover:bg-champagne hover:text-navy"
-            >
+            <Link to={businessCardHref} className="btn-outline-light btn-sm mt-6 border-champagne/70 text-champagne hover:border-champagne hover:bg-champagne hover:text-navy">
               <ContactRound className="h-4 w-4" aria-hidden />
               View Our Business Card
-              <span className="sr-only">(opens in a new tab)</span>
-            </a>
+            </Link>
           </div>
         </div>
         <div className="mt-6 flex flex-col gap-3 text-[0.8125rem] text-mist sm:flex-row sm:justify-between">

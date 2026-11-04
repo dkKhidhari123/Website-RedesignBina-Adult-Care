@@ -55,6 +55,5 @@ export const nav = [
 
 export const bookVisitHref = '/book-a-visit';
 
-/** Shared virtual business card designed on VistaPrint (opens in a new tab). */
-export const businessCardUrl =
-  'https://www.vistaprint.com/my-account/design/projects?shareToken=L8GoL6Xym4eUhOQfl99b0zyO0fT9G2xUwLH_1u8bqR0';
+/** The website's own Digital Business Card page. */
+export const businessCardHref = '/digital-business-card';
