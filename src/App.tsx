@@ -1,5 +1,5 @@
 import { lazy, Suspense } from 'react';
-import { Route, Routes } from 'react-router-dom';
+import { Navigate, Route, Routes } from 'react-router-dom';
 import { Layout } from './components/Layout';
 import Home from './pages/Home';
 import About from './pages/About';
@@ -40,7 +40,8 @@ export function App() {
         <Route path="book-a-visit" element={<BookVisit />} />
         <Route path="privacy-policy" element={<Privacy />} />
         <Route path="terms" element={<Terms />} />
-        <Route path="card" element={<BusinessCard />} />
+        <Route path="digital-business-card" element={<BusinessCard />} />
+        <Route path="card" element={<Navigate to="/digital-business-card" replace />} />
         <Route path="*" element={<NotFound />} />
       </Route>
     </Routes>

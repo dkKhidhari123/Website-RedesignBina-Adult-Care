@@ -10,8 +10,8 @@
     ]
   },
   "careers-hero": {
-    "width": 1612,
-    "height": 976,
+    "width": 2000,
+    "height": 1414,
     "widths": [
       480,
       800,
@@ -492,8 +492,8 @@
     ]
   },
   "services-hero": {
-    "width": 1913,
-    "height": 822,
+    "width": 2000,
+    "height": 1333,
     "widths": [
       480,
       800,
@@ -512,8 +512,8 @@
     ]
   },
   "team-hero": {
-    "width": 1707,
-    "height": 921,
+    "width": 2000,
+    "height": 1414,
     "widths": [
       480,
       800,

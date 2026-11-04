@@ -131,7 +131,11 @@ a size manifest to `src/data/image-manifest.json`, and `public/og-image.jpg`.
 To add or replace a photo: drop it in `src-images/`, run `npm run images`, then reference it by file name.
 
 - **Facility photos** (`gallery-*`, `home-*`, `living-room`, `dining-room`, `bedroom`, `sitting-area`) are the real El Sobrante home, taken from the previous site.
-- No stock photography is used anywhere on the site.
+- **Page hero photos** (`services-hero`, `team-hero`, `careers-hero`) are free stock photos from Unsplash
+  (Unsplash License — free for commercial use, no attribution required), photographed by Age Cymru:
+  [walker](https://unsplash.com/photos/2obyM4zYt3Y), [colouring](https://unsplash.com/photos/bSXk1lOp8T0),
+  [nurse](https://unsplash.com/photos/dMhB7w99ju8). They show models, not Bina Adult Care staff or residents —
+  replace them with real photos when available. All other photos are the real home.
 
 ## Business information
 

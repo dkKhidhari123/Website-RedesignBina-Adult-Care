@@ -21,7 +21,7 @@ export default function Team() {
         title="Meet Our Caring Team"
         image={{
           name: 'team-hero',
-          alt: 'Illustration of a caring team sitting with a smiling senior woman in a bright living room',
+          alt: 'A caregiver helping two seniors with a colouring activity at the kitchen table',
           natural: true,
         }}
       >

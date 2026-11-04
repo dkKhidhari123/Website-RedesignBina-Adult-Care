@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { Facebook, Instagram, Linkedin, Mail, MapPin, Phone } from 'lucide-react';
 import { bookVisitHref, fullAddress, nav, site } from '../data/site';
 
 function Heading({ children }: { children: string }) {
@@ -7,6 +8,8 @@ function Heading({ children }: { children: string }) {
 
 export function Footer() {
   const link = 'text-mist transition-colors hover:text-champagne';
+  const row = 'flex items-start gap-3';
+  const icon = 'mt-px h-[18px] w-[18px] shrink-0 text-brand-200';
   return (
     <footer className="bg-navy px-0 pb-7 pt-[4.5rem] text-[0.875rem] text-mist">
       <div className="container">
@@ -35,18 +38,21 @@ export function Footer() {
           </nav>
           <div>
             <Heading>Contact Us</Heading>
-            <ul className="flex flex-col gap-2.5">
-              <li>{fullAddress}, USA</li>
-              <li><a href={site.phone.href} className={link}>{site.phone.display}</a></li>
-              <li><a href={`mailto:${site.email}`} className={`break-all ${link}`}>{site.email}</a></li>
+            <ul className="flex flex-col gap-3.5">
+              <li className={row}><MapPin className={icon} aria-hidden />{fullAddress}, USA</li>
+              <li className={row}><Phone className={icon} aria-hidden /><a href={site.phone.href} className={link}>{site.phone.display}</a></li>
+              <li className={row}><Mail className={icon} aria-hidden /><a href={`mailto:${site.email}`} className={`break-all ${link}`}>{site.email}</a></li>
               {site.social.instagram && (
-                <li><a href={site.social.instagram.url} target="_blank" rel="noopener noreferrer" className={link}>Instagram {site.social.instagram.handle}</a></li>
+                <li className={row}>
+                  <Instagram className={icon} aria-hidden />
+                  <a href={site.social.instagram.url} target="_blank" rel="noopener noreferrer" className={link} aria-label={`Instagram ${site.social.instagram.handle}`}>{site.social.instagram.handle}</a>
+                </li>
               )}
               {site.social.facebook && (
-                <li><a href={site.social.facebook.url} target="_blank" rel="noopener noreferrer" className={link}>Facebook</a></li>
+                <li className={row}><Facebook className={icon} aria-hidden /><a href={site.social.facebook.url} target="_blank" rel="noopener noreferrer" className={link}>Facebook</a></li>
               )}
               {site.social.linkedin && (
-                <li><a href={site.social.linkedin.url} target="_blank" rel="noopener noreferrer" className={link}>LinkedIn</a></li>
+                <li className={row}><Linkedin className={icon} aria-hidden /><a href={site.social.linkedin.url} target="_blank" rel="noopener noreferrer" className={link}>LinkedIn</a></li>
               )}
             </ul>
           </div>

@@ -56,10 +56,10 @@ export const routeMeta: Record<string, RouteMeta> = {
     title: 'Terms & Conditions | Bina Adult Care',
     description: 'Terms and conditions for using the Bina Adult Care website.',
   },
-  '/card': {
+  '/digital-business-card': {
     title: 'Manoj Gadal, Owner / Director | Bina Adult Care',
     description:
-      'Virtual business card for Bina Adult Care, El Sobrante, CA. Call (510) 710-4392 or email binasadultcare@gmail.com.',
+      'Digital business card for Bina Adult Care, El Sobrante, CA. Call (510) 710-4392 or email binasadultcare@gmail.com.',
   },
 };
 

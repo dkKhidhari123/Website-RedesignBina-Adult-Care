@@ -133,7 +133,7 @@ export default function Services() {
         title="Care That Feels Like Home"
         image={{
           name: 'services-hero',
-          alt: 'Illustration of two caregivers sharing a warm moment with a smiling senior woman holding a cup of tea at home',
+          alt: 'A caregiver supporting a smiling senior woman with her walker in a bright, homely lounge',
           natural: true,
         }}
         actions={<Link to={bookVisitHref} className="btn-primary">Book a Visit</Link>}

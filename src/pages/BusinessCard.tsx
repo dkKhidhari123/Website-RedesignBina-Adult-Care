@@ -15,7 +15,7 @@ function formatPhone(phone: string) {
 }
 
 /**
- * Virtual business card (/card) — front and back of the printed card, side by side
+ * Digital business card (/digital-business-card; /card redirects here) — front and back of the printed card, side by side
  * on desktop and stacked on phones. Contact details come from src/data/site.ts.
  */
 export default function BusinessCard() {
@@ -43,7 +43,7 @@ export default function BusinessCard() {
     <section className="section bg-cream">
       <div className="container">
         <header className="section-head">
-          <h1 className="t-page">Virtual Business Card</h1>
+          <h1 className="t-page">Digital Business Card</h1>
           <span className="gold-rule" aria-hidden />
         </header>
 

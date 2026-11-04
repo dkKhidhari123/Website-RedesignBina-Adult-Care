@@ -9,6 +9,11 @@
       "source": "/booking",
       "destination": "/book-a-visit",
       "permanent": true
+    },
+    {
+      "source": "/card",
+      "destination": "/digital-business-card",
+      "permanent": true
     }
   ],
   "headers": [

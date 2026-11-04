@@ -20,7 +20,7 @@ export default function Careers() {
         title="Build a Career with Compassion"
         image={{
           name: 'careers-hero',
-          alt: 'Illustration of a caregiver taking notes while chatting with seniors in a welcoming common room',
+          alt: 'A smiling caregiver sharing a laugh with a senior woman',
           natural: true,
         }}
         actions={<a href="#opportunities" className="btn-primary">Explore Opportunities</a>}
