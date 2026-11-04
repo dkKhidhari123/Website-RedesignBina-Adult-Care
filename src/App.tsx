@@ -11,6 +11,7 @@ import Contact from './pages/Contact';
 import BookVisit from './pages/BookVisit';
 import Privacy from './pages/Privacy';
 import Terms from './pages/Terms';
+import BusinessCard from './pages/BusinessCard';
 import NotFound from './pages/NotFound';
 
 // The admin dashboard is loaded only when someone visits /admin, so it adds nothing to public pages.
@@ -39,6 +40,7 @@ export function App() {
         <Route path="book-a-visit" element={<BookVisit />} />
         <Route path="privacy-policy" element={<Privacy />} />
         <Route path="terms" element={<Terms />} />
+        <Route path="card" element={<BusinessCard />} />
         <Route path="*" element={<NotFound />} />
       </Route>
     </Routes>
