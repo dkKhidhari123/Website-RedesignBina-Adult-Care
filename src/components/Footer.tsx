@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import { ContactRound, Facebook, Instagram, Linkedin, Mail, MapPin, Phone } from 'lucide-react';
-import { bookVisitHref, businessCardHref, fullAddress, nav, site } from '../data/site';
+import { bookVisitHref, businessCardHref, fullAddress, licenses, nav, site } from '../data/site';
 
 function Heading({ children }: { children: string }) {
   return <h2 className="mb-3.5 font-sans text-[0.875rem] font-semibold text-white">{children}</h2>;
@@ -61,6 +61,15 @@ export function Footer() {
             </Link>
           </div>
         </div>
+        <dl className="mt-6 flex flex-col gap-1.5 border-b border-champagne/25 pb-6 text-[0.8125rem] sm:flex-row sm:flex-wrap sm:gap-x-8">
+          {licenses.map(({ name, number }) => (
+            <div key={number}>
+              {/* non-breaking space keeps the number on the same line as "License:" / "No.:" */}
+              <dt className="inline">{name}:{' '}</dt>
+              <dd className="inline whitespace-nowrap font-semibold tracking-[0.04em] text-white">{number}</dd>
+            </div>
+          ))}
+        </dl>
         <div className="mt-6 flex flex-col gap-3 text-[0.8125rem] text-mist sm:flex-row sm:justify-between">
           <p>
             © <span suppressHydrationWarning>{new Date().getFullYear()}</span> Bina Adult Care. All rights reserved.

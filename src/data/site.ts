@@ -39,6 +39,12 @@ export const site = {
   },
 };
 
+/** State license numbers, shown in the footer and on the Digital Business Card. */
+export const licenses = [
+  { name: 'Home Care Organization (HCO) License', short: 'HCO License', number: '074700219' },
+  { name: 'Residential Care Facility for the Elderly (RCFE) Facility No.', short: 'RCFE Facility No.', number: '079201568' },
+];
+
 export const fullAddress = `${site.address.street}, ${site.address.city}, ${site.address.state} ${site.address.zip}`;
 
 export const mapsLink = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(fullAddress)}`;

@@ -1,12 +1,7 @@
 import { ExternalLink, Globe, Mail, MapPin, Phone } from 'lucide-react';
-import { mapsLink, site, vistaprintCardUrl } from '../data/site';
+import { licenses, mapsLink, site, vistaprintCardUrl } from '../data/site';
 
 const owner = { name: 'Manoj Gadal', title: 'Owner / Director' };
-
-const licenses = [
-  { label: 'HCO License', value: '074700219' },
-  { label: 'RCFE Facility No.', value: '079201568' },
-];
 
 /** "510 710 4392" → "(510) 710-4392" */
 function formatPhone(phone: string) {
@@ -92,10 +87,10 @@ export default function BusinessCard() {
 
               <div className="mt-auto pt-7">
                 <dl className="flex flex-wrap gap-x-6 gap-y-1 border-t border-white/15 pt-4 text-[0.8125rem] text-brand-200">
-                  {licenses.map(({ label, value }) => (
-                    <div key={label} className="flex gap-1.5">
-                      <dt>{label}:</dt>
-                      <dd className="font-semibold tracking-[0.04em] text-white/90">{value}</dd>
+                  {licenses.map(({ name, short, number }) => (
+                    <div key={short} className="flex gap-1.5">
+                      <dt><abbr title={name} className="no-underline">{short}</abbr>:</dt>
+                      <dd className="font-semibold tracking-[0.04em] text-white/90">{number}</dd>
                     </div>
                   ))}
                 </dl>
