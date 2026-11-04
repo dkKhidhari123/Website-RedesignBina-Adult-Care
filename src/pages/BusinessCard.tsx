@@ -1,5 +1,5 @@
-import { Globe, Mail, MapPin, Phone } from 'lucide-react';
-import { mapsLink, site } from '../data/site';
+import { ExternalLink, Globe, Mail, MapPin, Phone } from 'lucide-react';
+import { mapsLink, site, vistaprintCardUrl } from '../data/site';
 
 const owner = { name: 'Manoj Gadal', title: 'Owner / Director' };
 
@@ -102,6 +102,13 @@ export default function BusinessCard() {
               </div>
             </div>
           </article>
+        </div>
+
+        <div className="mt-10 text-center">
+          <a href={vistaprintCardUrl} target="_blank" rel="noopener noreferrer" className="btn-secondary">
+            View on VistaPrint <ExternalLink className="h-4 w-4" aria-hidden />
+            <span className="sr-only">(opens in a new tab)</span>
+          </a>
         </div>
       </div>
     </section>

@@ -21,7 +21,7 @@ export function Footer() {
           <nav aria-label="Quick links">
             <Heading>Quick Links</Heading>
             <ul className="flex flex-col gap-2.5">
-              {[...nav, { to: '/about', label: 'About Us' }, { to: businessCardHref, label: 'Digital Business Card' }].map((n) => (
+              {[...nav, { to: '/about', label: 'About Us' }].map((n) => (
                 <li key={n.to}>
                   <Link to={n.to} className={link}>{n.label}</Link>
                 </li>

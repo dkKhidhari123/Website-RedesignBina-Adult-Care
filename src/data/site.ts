@@ -51,9 +51,14 @@ export const nav = [
   { to: '/gallery', label: 'Gallery' },
   { to: '/careers', label: 'Careers' },
   { to: '/contact', label: 'Contact' },
+  { to: '/digital-business-card', label: 'Business Card' },
 ];
 
 export const bookVisitHref = '/book-a-visit';
 
 /** The website's own Digital Business Card page. */
 export const businessCardHref = '/digital-business-card';
+
+/** The same card shared from VistaPrint (linked from the Digital Business Card page). */
+export const vistaprintCardUrl =
+  'https://www.vistaprint.com/my-account/design/projects?shareToken=L8GoL6Xym4eUhOQfl99b0zyO0fT9G2xUwLH_1u8bqR0';
