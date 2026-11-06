@@ -92,8 +92,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     res.setHeader('Allow', 'POST');
     return res.status(405).json({ ok: false, error: 'Method not allowed' });
   }
-  if (!supabaseConfigured() || !adminLoginConfigured())
-    return res.status(503).json({ ok: false, error: 'The admin dashboard is not configured yet.' });
+  if (!adminLoginConfigured())
+    return res.status(503).json({ ok: false, error: 'The admin login is not set up yet (ADMIN_USERNAME / ADMIN_PASSWORD).' });
 
   try {
     const body = (typeof req.body === 'string' ? JSON.parse(req.body) : req.body) ?? {};
@@ -121,9 +121,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const admin = verifyAdmin(req.headers.cookie);
     if (!admin) throw new HttpError(401, 'Please sign in.');
 
+    if (action === 'me') return res.status(200).json({ ok: true, username: admin.username });
+
+    // Everything below reads or writes the database.
+    if (!supabaseConfigured())
+      throw new HttpError(503, 'The database is not connected yet (SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY).');
+
     switch (action) {
-      case 'me':
-        return res.status(200).json({ ok: true, username: admin.username });
 
       case 'dashboard': {
         const tables = Object.keys(TABLES) as Table[];
