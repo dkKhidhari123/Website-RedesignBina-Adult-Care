@@ -7,7 +7,19 @@ import { AdminLayout } from './AdminLayout';
 import { SignIn } from './pages/AuthPages';
 import { Dashboard } from './pages/Dashboard';
 import { Inbox } from './pages/Inbox';
-import { FaqsEditor, GalleryEditor, ServicesEditor, SettingsEditor, TeamEditor, TestimonialsEditor, VacanciesEditor } from './pages/Editors';
+import {
+  FaqsEditor,
+  GalleryEditor,
+  HeroEditor,
+  HomeEditor,
+  LocationEditor,
+  ServicesEditor,
+  SettingsEditor,
+  TeamEditor,
+  TestimonialsEditor,
+  VacanciesEditor,
+  WhyEditor,
+} from './pages/Editors';
 
 function Centered({ children }: { children: ReactNode }) {
   return <div className="grid min-h-screen place-items-center bg-cream px-4 text-center">{children}</div>;
@@ -39,9 +51,8 @@ function Gate() {
         <div className="card max-w-lg p-8 text-left">
           <h1 className="t-title">Admin dashboard not configured</h1>
           <p className="mt-3 text-slate">
-            Set <code>ADMIN_USERNAME</code>, <code>ADMIN_PASSWORD</code>, <code>SUPABASE_URL</code> and{' '}
-            <code>SUPABASE_SERVICE_ROLE_KEY</code> in the Vercel project settings, then redeploy. See the README’s
-            “Admin dashboard” section.
+            Set <code>ADMIN_USERNAME</code> and <code>ADMIN_PASSWORD</code> in the Vercel project settings, then
+            redeploy. See the README’s “Admin dashboard” section.
           </p>
         </div>
       </Centered>
@@ -67,6 +78,10 @@ function Gate() {
           <Route path="messages" element={<Inbox table="contact_submissions" />} />
           <Route path="visits" element={<Inbox table="visit_requests" />} />
           <Route path="applications" element={<Inbox table="job_applications" />} />
+          <Route path="content/home" element={<WithContent><HomeEditor /></WithContent>} />
+          <Route path="content/hero" element={<WithContent><HeroEditor /></WithContent>} />
+          <Route path="content/why" element={<WithContent><WhyEditor /></WithContent>} />
+          <Route path="content/location" element={<WithContent><LocationEditor /></WithContent>} />
           <Route path="content/settings" element={<WithContent><SettingsEditor /></WithContent>} />
           <Route path="content/team" element={<WithContent><TeamEditor /></WithContent>} />
           <Route path="content/testimonials" element={<WithContent><TestimonialsEditor /></WithContent>} />

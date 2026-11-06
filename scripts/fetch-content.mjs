@@ -3,55 +3,74 @@
  *
  *   node scripts/fetch-content.mjs
  *
- * - Reads every section from the Supabase `site_content` table → src/data/cms.json
- * - Downloads gallery photos uploaded in the dashboard → src-images/cms-*.{jpg,png,webp}
- *   (scripts/optimize-images.mjs then builds their responsive versions)
+ * - Reads every section saved in the dashboard (content/*.json in the private Vercel Blob
+ *   store) → src/data/cms.json
+ * - Copies photos uploaded in the dashboard (uploads/cms-*) that the content uses
+ *   → src-images/ (scripts/optimize-images.mjs then builds their responsive versions)
  *
- * Needs SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY (set in Vercel). Without them the
- * existing src/data/cms.json is kept, so local builds work offline.
+ * Needs BLOB_READ_WRITE_TOKEN (added in Vercel when the Blob store is connected). Without it
+ * the existing src/data/cms.json is kept, so local builds work offline and never pick up
+ * test edits saved in ./.data by `npm run dev`.
  */
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { get, list } from '@vercel/blob';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const OUT = path.join(ROOT, 'src', 'data', 'cms.json');
 const IMAGES = path.join(ROOT, 'src-images');
 
-const url = process.env.SUPABASE_URL?.replace(/\/$/, '');
-const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+async function listFiles(prefix) {
+  const out = [];
+  let cursor;
+  do {
+    const r = await list({ prefix, cursor });
+    out.push(...r.blobs.map((b) => b.pathname));
+    cursor = r.hasMore ? r.cursor : undefined;
+  } while (cursor);
+  return out;
+}
 
-if (!url || !key) {
-  console.log('fetch-content: Supabase not configured — using existing src/data/cms.json');
+async function readFile(pathname) {
+  const r = await get(pathname, { access: 'private', useCache: false });
+  if (!r || r.statusCode !== 200) throw new Error(`could not read ${pathname}`);
+  return Buffer.from(await new Response(r.stream).arrayBuffer());
+}
+
+if (!process.env.BLOB_READ_WRITE_TOKEN) {
+  console.log('fetch-content: Blob store not connected — using existing src/data/cms.json');
   process.exit(0);
 }
 
-const r = await fetch(`${url}/rest/v1/site_content?select=key,value`, {
-  headers: { apikey: key, Authorization: `Bearer ${key}` },
-});
-if (!r.ok) {
-  console.error(`fetch-content: could not read site_content (${r.status}) — keeping existing content`);
+let content;
+try {
+  const paths = (await listFiles('content/')).filter((p) => p.endsWith('.json') && p !== 'content/meta.json');
+  content = {};
+  for (const p of paths) content[p.slice(8, -5)] = JSON.parse((await readFile(p)).toString('utf8')).value;
+} catch (err) {
+  console.error(`fetch-content: could not read saved content (${err.message}) — keeping existing content`);
   process.exit(0);
 }
 
-const rows = await r.json();
-const content = Object.fromEntries(rows.filter((x) => x.key !== 'meta').map((x) => [x.key, x.value]));
-
-for (const item of content.gallery ?? []) {
-  if (!item.url || !/^cms-[a-z0-9-]+$/.test(item.image)) continue;
-  const ext = (item.url.split('?')[0].split('.').pop() || 'jpg').toLowerCase();
-  const file = path.join(IMAGES, `${item.image}.${ext}`);
-  try {
-    await fs.access(file);
-    continue; // already downloaded
-  } catch {}
-  const img = await fetch(item.url);
-  if (!img.ok) {
-    console.warn(`fetch-content: could not download ${item.url} (${img.status}) — skipping`);
-    continue;
+// Uploaded photos used by the gallery or the homepage slider.
+const used = new Set([...(content.gallery ?? []), ...(content.hero ?? [])].map((x) => x.image).filter((i) => /^cms-[a-z0-9-]+$/.test(i)));
+if (used.size) {
+  const uploads = await listFiles('uploads/');
+  for (const image of used) {
+    const pathname = uploads.find((p) => p.startsWith(`uploads/${image}.`));
+    if (!pathname) {
+      console.warn(`fetch-content: uploaded photo ${image} not found — skipping`);
+      continue;
+    }
+    const file = path.join(IMAGES, path.basename(pathname));
+    try {
+      await fs.access(file);
+      continue; // already copied
+    } catch {}
+    await fs.writeFile(file, await readFile(pathname));
+    console.log(`✓ copied ${path.basename(pathname)}`);
   }
-  await fs.writeFile(file, Buffer.from(await img.arrayBuffer()));
-  console.log(`✓ downloaded ${item.image}.${ext}`);
 }
 
 await fs.writeFile(OUT, JSON.stringify(content, null, 2) + '\n');

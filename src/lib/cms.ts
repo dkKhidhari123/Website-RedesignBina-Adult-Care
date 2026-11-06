@@ -1,7 +1,7 @@
 /**
  * Content managed in the admin dashboard.
  *
- * Each section is stored as one JSON document in the Supabase `site_content` table.
+ * Each section is stored as one private JSON file (content/<key>.json) in the Vercel Blob store.
  * At build time scripts/fetch-content.mjs writes the published documents to
  * src/data/cms.json, and the site's data files use them in place of their defaults.
  *
@@ -47,7 +47,7 @@ export interface VacancyItem {
 export interface GalleryItem {
   /** Image name in the optimized set (local photos) or `cms-<id>` for uploads. */
   image: string;
-  /** Public URL of an uploaded photo (empty for photos that ship with the site). */
+  /** Unused since storage moved to private Vercel Blob; kept empty for older saves. */
   url: string;
   alt: string;
   category: 'outdoor' | 'living' | 'rooms' | 'dining';
@@ -64,7 +64,28 @@ export interface FaqItem {
   a: string;
 }
 
+export interface HomeContent {
+  badge: string;
+  headline: string;
+  intro: string;
+}
+
+export interface HeroItem {
+  /** Image name in the optimized set or `cms-<id>` for an upload. */
+  image: string;
+  alt: string;
+  hidden: boolean;
+}
+
+export interface WhyItem {
+  title: string;
+  text: string;
+}
+
 export interface CmsContent {
+  home?: HomeContent;
+  hero?: HeroItem[];
+  why?: WhyItem[];
   settings?: Settings;
   team?: TeamItem[];
   testimonials?: TestimonialItem[];
@@ -75,7 +96,7 @@ export interface CmsContent {
 }
 
 export type CmsKey = keyof CmsContent;
-export const CMS_KEYS: CmsKey[] = ['settings', 'team', 'testimonials', 'vacancies', 'gallery', 'services', 'faqs'];
+export const CMS_KEYS: CmsKey[] = ['home', 'hero', 'why', 'settings', 'team', 'testimonials', 'vacancies', 'gallery', 'services', 'faqs'];
 
 export const GALLERY_CATEGORY_KEYS = ['outdoor', 'living', 'rooms', 'dining'] as const;
 
@@ -95,8 +116,7 @@ function text(v: unknown, max: number, label: string, required = false): string 
 
 function url(v: unknown, label: string): string {
   const s = text(v, 300, label);
-  // https only — plus http://localhost so the dashboard can be tested locally.
-  if (s && !/^(https:\/\/|http:\/\/localhost(:\d+)?\/)[^\s]+$/i.test(s)) throw new ContentError(`${label} must be a full https:// link.`);
+  if (s && !/^https:\/\/[^\s]+$/i.test(s)) throw new ContentError(`${label} must be a full https:// link.`);
   return s;
 }
 
@@ -109,7 +129,35 @@ function list<T>(v: unknown, max: number, label: string, item: (x: Obj, i: numbe
   });
 }
 
+const imageName = (v: unknown, label: string) => {
+  const image = text(v, 80, label, true);
+  if (!/^[a-z0-9-]+$/.test(image)) throw new ContentError(`${label} has an invalid name.`);
+  return image;
+};
+
 const sanitizers: { [K in CmsKey]-?: (v: unknown) => NonNullable<CmsContent[K]> } = {
+  home(v) {
+    if (!isObj(v)) throw new ContentError('Homepage headline is invalid.');
+    return {
+      badge: text(v.badge, 40, 'Small label'),
+      headline: text(v.headline, 120, 'Headline', true),
+      intro: text(v.intro, 400, 'Introduction', true),
+    };
+  },
+  hero: (v) => {
+    const items = list(v, 20, 'Hero images', (x, i) => ({
+      image: imageName(x.image, `Hero image ${i + 1}`),
+      alt: text(x.alt, 160, `Hero image ${i + 1} description`, true),
+      hidden: x.hidden === true,
+    }));
+    if (!items.some((x) => !x.hidden)) throw new ContentError('Keep at least one hero image visible.');
+    return items;
+  },
+  why: (v) =>
+    list(v, 8, 'Why Choose Us', (x, i) => ({
+      title: text(x.title, 60, `Reason ${i + 1} title`, true),
+      text: text(x.text, 200, `Reason ${i + 1} text`, true),
+    })),
   settings(v) {
     if (!isObj(v)) throw new ContentError('Business information is invalid.');
     const phone = text(v.phone, 30, 'Phone', true);
@@ -156,12 +204,11 @@ const sanitizers: { [K in CmsKey]-?: (v: unknown) => NonNullable<CmsContent[K]> 
     })),
   gallery: (v) =>
     list(v, 200, 'Gallery', (x, i) => {
-      const image = text(x.image, 80, `Photo ${i + 1}`, true);
-      if (!/^[a-z0-9-]+$/.test(image)) throw new ContentError(`Photo ${i + 1} has an invalid name.`);
+      const image = imageName(x.image, `Photo ${i + 1}`);
       const category = GALLERY_CATEGORY_KEYS.includes(x.category as never) ? (x.category as GalleryItem['category']) : 'living';
       return {
         image,
-        url: url(x.url, `Photo ${i + 1} link`),
+        url: '',
         alt: text(x.alt, 160, `Photo ${i + 1} description`, true),
         category,
         hidden: x.hidden === true,

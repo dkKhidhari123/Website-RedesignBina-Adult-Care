@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { normalizeApplication, RESUME, validateApplication } from '../src/lib/validation.js';
 import { ensureConfigured, fail, insertRow, meta, notifyTeam, readBody, sendValidationErrors, uploadPrivateFile } from './_lib/server.js';
 
-/** POST /api/apply — job applications → job_applications, resume → private "resumes" bucket */
+/** POST /api/apply — job applications → job_applications, resume → private resumes/ folder (Vercel Blob) */
 
 const TYPES: Record<string, { mime: string; magic: number[] }> = {
   pdf: { mime: 'application/pdf', magic: [0x25, 0x50, 0x44, 0x46] }, // %PDF
@@ -64,7 +64,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       `Name: ${data.name}`,
       `Phone: ${data.phone}`,
       `Email: ${data.email}`,
-      `Resume: ${resumePath ? `Supabase Storage → resumes/${resumePath}` : 'not provided'}`,
+      `Resume: ${resumePath ? 'attached — download it in the admin dashboard' : 'not provided'}`,
       '',
       data.message || '(no message)',
     ],

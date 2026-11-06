@@ -5,12 +5,15 @@
 import type { CmsContent, CmsKey } from '../lib/cms';
 import cmsJson from '../data/cms.json';
 import { site } from '../data/site';
-import { serviceFaqs, serviceTabs, team, testimonials, vacancies } from '../data/content';
+import { defaultHeroImages, homeIntro, serviceFaqs, serviceTabs, team, testimonials, vacancies, whyChoose } from '../data/content';
 import { defaultGallery } from '../data/gallery';
 
 const cms = cmsJson as CmsContent;
 
 export const currentContent: { [K in CmsKey]-?: NonNullable<CmsContent[K]> } = {
+  home: { ...homeIntro },
+  hero: cms.hero ?? defaultHeroImages,
+  why: whyChoose.map((w) => ({ ...w })),
   settings: {
     phone: site.phone.display,
     email: site.email,

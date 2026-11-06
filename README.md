@@ -2,7 +2,7 @@
 
 Marketing website for Bina Adult Care, a residential and in-home senior care provider in El Sobrante, California.
 
-**Stack:** Vite · React 18 · TypeScript · Tailwind CSS · React Router · Vercel Serverless Functions · Supabase (Postgres + Storage)
+**Stack:** Vite · React 18 · TypeScript · Tailwind CSS · React Router · Vercel Serverless Functions · Vercel Blob (private storage)
 
 ## Pages
 
@@ -33,8 +33,8 @@ Design tokens and guidelines: see [DESIGN.md](DESIGN.md).
 
 ```bash
 npm install
-cp .env.example .env.local   # fill in Supabase values to test the form locally
-npm run dev                  # http://localhost:5173 — /api/contact works here too
+cp .env.example .env.local   # set ADMIN_USERNAME / ADMIN_PASSWORD to try the dashboard
+npm run dev                  # http://localhost:5173 — forms and /admin work here too (saved in ./.data)
 ```
 
 | Script              | What it does                                                         |
@@ -46,24 +46,27 @@ npm run dev                  # http://localhost:5173 — /api/contact works here
 
 ## Forms & backend
 
-| Form            | Component                           | API                | Supabase table / storage                   |
-| --------------- | ----------------------------------- | ------------------ | ------------------------------------------ |
-| Contact         | `src/components/forms/ContactForm`  | `api/contact.ts`   | `contact_submissions`                      |
-| Book a visit    | `src/components/forms/VisitForm`    | `api/visit.ts`     | `visit_requests` (status starts `requested`) |
-| Job application | `src/components/forms/ApplicationForm` | `api/apply.ts`  | `job_applications` + private `resumes` bucket |
+Everything runs on Vercel — no other service is needed.
+
+| Form            | Component                           | API                | Stored in the private Blob store            |
+| --------------- | ----------------------------------- | ------------------ | ------------------------------------------- |
+| Contact         | `src/components/forms/ContactForm`  | `api/contact.ts`   | `inbox/contact_submissions/<id>.json`       |
+| Book a visit    | `src/components/forms/VisitForm`    | `api/visit.ts`     | `inbox/visit_requests/<id>.json` (status starts `requested`) |
+| Job application | `src/components/forms/ApplicationForm` | `api/apply.ts`  | `inbox/job_applications/<id>.json` + `resumes/…` |
 
 - Validation is shared by browser and server (`src/lib/validation.ts`); the server is the source of truth.
 - Spam protection: hidden honeypot field + minimum time-on-form. Filtered requests get a silent "ok".
-- Resumes: PDF/DOC/DOCX up to 3 MB, checked by file signature on the server, stored under a random name in a **private** bucket.
-- All tables have Row Level Security on with **no policies** and client roles revoked — nothing is readable with the public anon key. Only the server functions write, using the service-role key.
+- Resumes: PDF/DOC/DOCX up to 3 MB, checked by file signature on the server, stored under a random name.
+- Storage (`api/_lib/store.ts`) is a **private** Vercel Blob store: no file has a public URL. Submissions,
+  resumes and uploaded photos are only readable through `/api/admin`, after the admin session is checked.
 - Optional email alert per submission via [Resend](https://resend.com).
-- Staff view submissions in Supabase → Table Editor, and resumes in Storage → `resumes`.
+- Staff read and manage submissions in the admin dashboard (**Inbox**).
 
-### One-time Supabase setup
+### One-time storage setup
 
-1. Open your Supabase project → **SQL Editor**.
-2. Run `supabase/migrations/001_contact_submissions.sql`, then `002_visits_and_applications.sql`.
-3. Copy the project URL and **service_role** key from **Settings → API** into Vercel env vars.
+1. Vercel → your project → **Storage** → **Create** → **Blob**. Choose **Private** access.
+2. Connect it to the project (all environments). Vercel adds `BLOB_READ_WRITE_TOKEN` automatically.
+3. Redeploy.
 
 ## Admin dashboard
 
@@ -71,30 +74,27 @@ Staff manage the website at **`/admin`** (e.g. `https://www.binaadultcare.com/ad
 
 | Area | What you can do |
 | --- | --- |
-| **Dashboard** | See new messages, visit requests awaiting confirmation and new applications |
-| **Inbox** — Messages, Visit requests, Applications | Read details, call/email in one tap, change status, add private staff notes, download resumes, delete entries |
-| **Business info** | Phone, email, address, hours, Instagram / Facebook / LinkedIn links |
-| **Team** | Names, roles, credentials, emails and short messages |
-| **Testimonials** | Add, edit, reorder or remove (empty list hides the section) |
-| **Careers** | Open positions (empty list shows “No Current Openings”) |
-| **Gallery** | Upload photos, describe them, set category, reorder, hide or remove |
-| **Services / FAQs** | The “What We Offer” lists and the FAQ on the Services page |
+| **Dashboard** | Counts of hero images, gallery photos, team members and services; quick actions; latest form submissions |
+| **Inbox** — Messages, Visit Requests, Applications | Read details, call/email in one tap, change status, add private staff notes, download resumes, delete entries |
+| **Content** | Homepage Headline, Hero Images (homepage slideshow), Gallery, Services, Why Choose Us, Testimonials, FAQs |
+| **People** | Team Members — names, roles, credentials, emails and short messages |
+| **Locations** | Address and opening hours, with a map preview |
+| **Job Positions** | Open positions on the Careers page (empty list shows “No Current Openings”) |
+| **Settings** | Phone, email, Instagram / Facebook / LinkedIn links |
 
-**Saving vs publishing:** edits are saved in Supabase straight away. Press **Publish website** (top right) to
-rebuild the public site with your changes — it goes live in about 1–2 minutes. The site stays fully static
-(fast, search-engine friendly); uploaded photos are optimized during that rebuild.
+**Saving vs publishing:** edits are saved straight away. Press **Publish website** (top right) to rebuild the
+public site with your changes — it goes live in about 1–2 minutes. The site stays fully static (fast, search-engine
+friendly); photos uploaded in the dashboard are optimized during that rebuild.
 
 **Security:** there is one login — an **Admin ID and password** stored as private Vercel settings
 (`ADMIN_USERNAME`, `ADMIN_PASSWORD`). After signing in, the server sets a signed, HttpOnly session cookie
 that lasts 8 hours; every dashboard request is checked on the server (`api/admin.ts`). After 5 wrong
-attempts from the same connection, logins are blocked for 15 minutes. The browser never receives any
-database key, all tables stay private (RLS on, no client policies), and `/admin` is excluded from
-search engines.
+attempts from the same connection, logins are blocked for 15 minutes. The browser never receives the storage
+token, all stored files are private, and `/admin` is excluded from search engines.
 
 ### One-time setup
 
-1. **Database:** in Supabase → SQL Editor, run `supabase/migrations/003_admin_dashboard.sql`
-   (after 001 and 002).
+1. **Storage:** connect a private Blob store (see “One-time storage setup” above).
 2. **Login:** in Vercel → Settings → Environment Variables, set `ADMIN_USERNAME` (your Admin ID) and
    `ADMIN_PASSWORD` (a strong password, 12+ characters).
 3. **Publish button:** in Vercel → Project → Settings → Git → **Deploy Hooks**, create a hook for the
@@ -110,8 +110,7 @@ Set in **Vercel → Project → Settings → Environment Variables**, then redep
 
 | Name                         | Where it’s used | Required | Description |
 | ---------------------------- | --------------- | -------- | ----------- |
-| `SUPABASE_URL`               | server + build  | yes      | `https://<project>.supabase.co` |
-| `SUPABASE_SERVICE_ROLE_KEY`  | server + build  | yes      | Service-role key — **secret**, never prefix with `VITE_` |
+| `BLOB_READ_WRITE_TOKEN`      | server + build  | yes      | Added automatically when the private Blob store is connected — **secret** |
 | `ADMIN_USERNAME`             | server          | for admin | The Admin ID used to sign in at `/admin` |
 | `ADMIN_PASSWORD`             | server          | for admin | The admin password — **secret**, 12+ characters |
 | `VERCEL_DEPLOY_HOOK_URL`     | server          | for admin | Deploy hook used by **Publish website** |
@@ -119,7 +118,7 @@ Set in **Vercel → Project → Settings → Environment Variables**, then redep
 | `CONTACT_NOTIFY_EMAIL`       | server          | no       | Alert recipient(s), comma-separated |
 | `CONTACT_FROM_EMAIL`         | server          | no       | Verified Resend sender |
 
-Without the Supabase variables the forms show a friendly “please call us” message, and the build uses the
+Without a connected Blob store, the live forms show a friendly “please call us” message, and the build uses the
 content in `src/data/cms.json` (empty = the defaults in `src/data/*.ts`).
 
 ## Images

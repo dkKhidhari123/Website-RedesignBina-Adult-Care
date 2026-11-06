@@ -7,14 +7,7 @@ import { PhotoMarquee } from '../components/PhotoMarquee';
 import { SectionHeader } from '../components/SectionHeader';
 import { CtaBand } from '../components/CtaBand';
 import { bookVisitHref, site } from '../data/site';
-import { heroSlides, testimonials } from '../data/content';
-
-const why = [
-  { title: 'Personalized Attention', text: 'Care shaped around each person, not a standard routine.' },
-  { title: 'Comfortable Environment', text: 'A calm, homelike setting that feels safe and familiar.' },
-  { title: 'Compassionate Caregivers', text: 'Every resident receives attention with dignity and respect.' },
-  { title: 'Family-Focused Support', text: 'Open communication so families stay informed and involved.' },
-];
+import { heroSlides, homeIntro, testimonials, whyChoose } from '../data/content';
 
 const p = (image: ImageName, alt: string) => ({ image, alt });
 const aboutPhotos: Parameters<typeof PhotoMarquee>[0]['columns'] = [
@@ -50,12 +43,9 @@ export default function Home() {
       <section id="home" className="py-16 sm:py-20">
         <div className="container grid items-center gap-14 lg:grid-cols-2">
           <div>
-            <span className="pill-label mb-6">Trusted Senior Care</span>
-            <h1 className="t-display">Compassionate Care. Comfortable Living. Peace of Mind.</h1>
-            <p className="mt-5 max-w-[520px] text-[1.0625rem] text-slate-muted">
-              Personalized Residential Care and Home Care for senior adults, with dignity, respect and compassion.
-              Available 24/7 in El Sobrante, California.
-            </p>
+            {homeIntro.badge && <span className="pill-label mb-6">{homeIntro.badge}</span>}
+            <h1 className="t-display">{homeIntro.headline}</h1>
+            <p className="mt-5 max-w-[520px] text-[1.0625rem] text-slate-muted">{homeIntro.intro}</p>
             <div className="mt-8 flex flex-wrap gap-3">
               <Link to={bookVisitHref} className="btn-primary">Book a Visit</Link>
               <Link to="/services" className="btn-secondary">Explore Our Services</Link>
@@ -88,7 +78,7 @@ export default function Home() {
             <p>Personalized attention, a comfortable environment and family-focused support.</p>
           </SectionHeader>
           <ul className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-            {why.map((w, i) => (
+            {whyChoose.map((w, i) => (
               <li key={w.title} className="card reveal p-7" style={{ transitionDelay: `${i * 70}ms` }}>
                 <span className="mb-[18px] grid h-10 w-10 place-items-center rounded-full bg-brand-50 font-semibold text-brand-700">
                   {i + 1}

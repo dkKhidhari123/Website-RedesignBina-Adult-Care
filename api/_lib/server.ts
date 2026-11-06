@@ -1,10 +1,11 @@
 /**
  * Server-only helpers for the /api functions. Files in api/_lib are not routes.
- * Env: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
+ * Env: BLOB_READ_WRITE_TOKEN (private Vercel Blob store — see store.ts)
  *      RESEND_API_KEY, CONTACT_NOTIFY_EMAIL, CONTACT_FROM_EMAIL (optional email alerts)
  */
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { createHash, createHmac, timingSafeEqual } from 'node:crypto';
+import { addRecord, storeConfigured, writeFile, type InboxTable } from './store.js';
 
 const MIN_FILL_MS = 2500; // people take longer than this to fill in a form
 
@@ -48,50 +49,23 @@ export function sendValidationErrors(res: VercelResponse, fields: object) {
   res.status(422).json({ ok: false, error: 'Please check the highlighted fields.', fields });
 }
 
-function supabaseEnv() {
-  const url = process.env.SUPABASE_URL?.replace(/\/$/, '');
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  return url && key ? { url, key } : null;
-}
-
 export function ensureConfigured(res: VercelResponse) {
-  if (supabaseEnv()) return true;
-  console.error('[api] Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY');
+  if (storeConfigured()) return true;
+  console.error('[api] Missing BLOB_READ_WRITE_TOKEN (connect a private Blob store to the project)');
   res.status(503).json({ ok: false, error: 'Our online form is temporarily unavailable. Please call us instead.' });
   return false;
 }
 
-/** Inserts one row with the service-role key (bypasses RLS; tables are private). */
-export async function insertRow(table: string, row: Record<string, unknown>) {
-  const env = supabaseEnv()!;
-  const r = await fetch(`${env.url}/rest/v1/${table}`, {
-    method: 'POST',
-    headers: {
-      apikey: env.key,
-      Authorization: `Bearer ${env.key}`,
-      'Content-Type': 'application/json',
-      Prefer: 'return=minimal',
-    },
-    body: JSON.stringify(row),
-  });
-  if (!r.ok) throw new Error(`Supabase insert into ${table} failed: ${r.status} ${await r.text()}`);
+/** Saves one form submission privately (see store.ts). */
+export async function insertRow(table: InboxTable, row: Record<string, unknown>) {
+  await addRecord(table, row);
 }
 
-/** Uploads a file to a private Supabase Storage bucket. Returns the stored object path. */
-export async function uploadPrivateFile(bucket: string, path: string, bytes: Buffer, contentType: string) {
-  const env = supabaseEnv()!;
-  const r = await fetch(`${env.url}/storage/v1/object/${bucket}/${path}`, {
-    method: 'POST',
-    headers: {
-      apikey: env.key,
-      Authorization: `Bearer ${env.key}`,
-      'Content-Type': contentType,
-      'x-upsert': 'false',
-    },
-    body: bytes,
-  });
-  if (!r.ok) throw new Error(`Supabase upload failed: ${r.status} ${await r.text()}`);
-  return path;
+/** Saves an uploaded file privately. Returns the stored pathname. */
+export async function uploadPrivateFile(folder: string, name: string, bytes: Buffer, contentType: string) {
+  const pathname = `${folder}/${name}`;
+  await writeFile(pathname, bytes, contentType);
+  return pathname;
 }
 
 /** Best-effort email alert to the team via Resend. Never throws. */
@@ -130,29 +104,10 @@ export function fail(res: VercelResponse, err: unknown, message = 'We could not 
 
 /* ── Admin dashboard helpers ──────────────────────────────── */
 
-export const supabaseConfigured = () => supabaseEnv() !== null;
-
-/** Fetch against the Supabase REST/Storage/Auth APIs with the service-role key. Throws on errors. */
-export async function supabase(path: string, init: RequestInit & { headers?: Record<string, string> } = {}) {
-  const env = supabaseEnv()!;
-  const isBinary = init.body instanceof Uint8Array;
-  const r = await fetch(`${env.url}${path}`, {
-    ...init,
-    headers: {
-      apikey: env.key,
-      Authorization: `Bearer ${env.key}`,
-      ...(init.body && !isBinary ? { 'Content-Type': 'application/json' } : {}),
-      ...init.headers,
-    },
-  });
-  if (!r.ok) throw new Error(`Supabase ${init.method ?? 'GET'} ${path.split('?')[0]} failed: ${r.status} ${await r.text()}`);
-  return r;
-}
-
 /* ── Admin login: one Admin ID + password from environment variables ──
    ADMIN_USERNAME / ADMIN_PASSWORD are set in Vercel. After a successful login the
    server sets an HttpOnly, signed session cookie (8 hours). The signing key is derived
-   from the password and the service-role key, so changing the password signs everyone out. */
+   from the password (plus ADMIN_SESSION_SECRET if set), so changing the password signs everyone out. */
 
 
 export const SESSION_COOKIE = 'bina_admin';
@@ -162,7 +117,7 @@ export const adminLoginConfigured = () => Boolean(process.env.ADMIN_USERNAME && 
 
 function signingKey() {
   return createHash('sha256')
-    .update(`bina-admin-session:${process.env.ADMIN_PASSWORD}:${process.env.SUPABASE_SERVICE_ROLE_KEY ?? ''}`)
+    .update(`bina-admin-session:${process.env.ADMIN_PASSWORD}:${process.env.ADMIN_SESSION_SECRET ?? ''}`)
     .digest();
 }
 

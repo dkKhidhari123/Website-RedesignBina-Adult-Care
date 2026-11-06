@@ -17,7 +17,8 @@ function vercelApiDev(): Plugin {
           const mod = await server.ssrLoadModule(`/api/${route}.ts`);
           let raw = '';
           for await (const chunk of req) raw += chunk;
-          const vReq = Object.assign(req, { body: raw ? JSON.parse(raw) : undefined });
+          const query = Object.fromEntries(new URLSearchParams((req.url ?? '').split('?')[1] ?? ''));
+          const vReq = Object.assign(req, { body: raw ? JSON.parse(raw) : undefined, query });
           const vRes = Object.assign(res, {
             status(code: number) {
               res.statusCode = code;
@@ -26,6 +27,10 @@ function vercelApiDev(): Plugin {
             json(data: unknown) {
               res.setHeader('Content-Type', 'application/json');
               res.end(JSON.stringify(data));
+              return vRes;
+            },
+            send(data: Buffer | string) {
+              res.end(data);
               return vRes;
             },
           });

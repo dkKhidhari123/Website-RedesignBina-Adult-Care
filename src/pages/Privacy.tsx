@@ -54,8 +54,7 @@ export default function Privacy() {
             <h2>Service providers</h2>
             <p>We use a small number of trusted providers to run this website:</p>
             <ul>
-              <li>Vercel — website hosting.</li>
-              <li>Supabase — secure database and file storage for form submissions.</li>
+              <li>Vercel — website hosting, and secure private storage for form submissions and uploaded files.</li>
               <li>Google — embedded map on our Contact page and website fonts.</li>
               <li>An email delivery provider, if enabled, to notify our team of new submissions.</li>
             </ul>

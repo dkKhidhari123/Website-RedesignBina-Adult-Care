@@ -2,8 +2,13 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { ArrowDown, ArrowUp, Check, Eye, EyeOff, ImagePlus, Loader2, Plus, Trash2 } from 'lucide-react';
 import { useContent } from '../content';
 import { adminCall, formatDate } from '../api';
-import type { CmsContent, CmsKey, FaqItem, GalleryItem, Settings, TeamItem, TestimonialItem, VacancyItem } from '../../lib/cms';
+import { PageHeader } from '../AdminLayout';
+import type { CmsContent, CmsKey, FaqItem, GalleryItem, HeroItem, HomeContent, Settings, TeamItem, TestimonialItem, VacancyItem, WhyItem } from '../../lib/cms';
 import { GALLERY_CATEGORIES } from '../../data/gallery';
+import { mapsEmbed } from '../../data/site';
+
+/** Preview for a photo: uploads are served privately by /api/admin, site photos from /images. */
+const previewSrc = (image: string) => (image.startsWith('cms-') ? `/api/admin?image=${image}` : `/images/${image}-480.webp`);
 
 /* ── Shared pieces ─────────────────────────────────────────── */
 
@@ -50,13 +55,19 @@ function EditorShell<K extends CmsKey>({
 
   const last = updatedAt(section);
   return (
-    <div className="mx-auto max-w-4xl pb-28">
-      <h1 className="t-page text-[2rem]">{title}</h1>
-      <div className="mt-2 max-w-2xl text-slate">{intro}</div>
-      <p className="mt-1 text-sm text-slate">{last ? `Last saved ${formatDate(last)}` : 'Showing what the website currently displays.'}</p>
-      <div className="mt-8 space-y-4">{children}</div>
+    <div className="mx-auto max-w-5xl pb-28">
+      <PageHeader
+        title={title}
+        subtitle={
+          <>
+            {intro}
+            <p className="mt-1 text-sm">{last ? `Last saved ${formatDate(last)}` : 'Showing what the website currently displays.'}</p>
+          </>
+        }
+      />
+      <div className="space-y-4">{children}</div>
 
-      <div className="fixed inset-x-0 bottom-0 z-20 border-t border-line bg-white/95 px-4 py-3 backdrop-blur lg:left-[260px]">
+      <div className="fixed inset-x-0 bottom-0 z-20 border-t border-line bg-white/95 px-4 py-3 backdrop-blur lg:left-[var(--admin-sidebar,288px)]">
         <div className="mx-auto flex max-w-4xl flex-wrap items-center justify-between gap-3">
           <p role="status" className={`text-sm ${msg ? (msg.ok ? 'text-emerald-800' : 'text-red-800') : 'text-slate'}`}>
             {msg?.text ?? (dirty ? 'You have unsaved changes.' : 'No unsaved changes.')}
@@ -117,7 +128,7 @@ const move = <T,>(arr: T[], from: number, to: number) => {
 
 /* ── Generic list editor (team, testimonials, careers, FAQs) ── */
 
-function ListEditor<K extends 'team' | 'testimonials' | 'vacancies' | 'faqs', T extends NonNullable<CmsContent[K]>[number]>({
+function ListEditor<K extends 'team' | 'testimonials' | 'vacancies' | 'faqs' | 'why', T extends NonNullable<CmsContent[K]>[number]>({
   section,
   title,
   intro,
@@ -125,6 +136,7 @@ function ListEditor<K extends 'team' | 'testimonials' | 'vacancies' | 'faqs', T 
   empty,
   itemLabel,
   emptyText,
+  max,
 }: {
   section: K;
   title: string;
@@ -133,6 +145,7 @@ function ListEditor<K extends 'team' | 'testimonials' | 'vacancies' | 'faqs', T 
   empty: T;
   itemLabel: (item: T, i: number) => string;
   emptyText: string;
+  max?: number;
 }) {
   const { get } = useContent();
   const initial = get(section) as T[];
@@ -158,9 +171,11 @@ function ListEditor<K extends 'team' | 'testimonials' | 'vacancies' | 'faqs', T 
           </div>
         </fieldset>
       ))}
-      <button type="button" className="btn-secondary" onClick={() => setItems((xs) => [...xs, { ...empty }])}>
-        <Plus className="h-4 w-4" aria-hidden /> Add
-      </button>
+      {(!max || items.length < max) && (
+        <button type="button" className="btn-secondary" onClick={() => setItems((xs) => [...xs, { ...empty }])}>
+          <Plus className="h-4 w-4" aria-hidden /> Add
+        </button>
+      )}
     </EditorShell>
   );
 }
@@ -168,7 +183,7 @@ function ListEditor<K extends 'team' | 'testimonials' | 'vacancies' | 'faqs', T 
 export const TeamEditor = () => (
   <ListEditor<'team', TeamItem>
     section="team"
-    title="Team"
+    title="Team Members"
     intro="Leadership shown on the Our Team page. Please make sure each person has approved their message and email being shown."
     fields={[
       { key: 'name', label: 'Name' },
@@ -203,7 +218,7 @@ export const TestimonialsEditor = () => (
 export const VacanciesEditor = () => (
   <ListEditor<'vacancies', VacancyItem>
     section="vacancies"
-    title="Careers — open positions"
+    title="Job Positions"
     intro="Shown on the Careers page. When this list is empty, the page says “No Current Openings” and invites general applications."
     fields={[
       { key: 'title', label: 'Job title', wide: true },
@@ -220,7 +235,7 @@ export const VacanciesEditor = () => (
 export const FaqsEditor = () => (
   <ListEditor<'faqs', FaqItem>
     section="faqs"
-    title="Frequently asked questions"
+    title="FAQs"
     intro="Shown on the Services page."
     fields={[
       { key: 'q', label: 'Question', wide: true },
@@ -232,29 +247,99 @@ export const FaqsEditor = () => (
   />
 );
 
-/* ── Business information ─────────────────────────────────── */
+/* ── Homepage headline ──────────────────────────────────────── */
+
+export function HomeEditor() {
+  const { get } = useContent();
+  const initial = get('home');
+  const [v, setV] = useState<HomeContent>(initial);
+  const field = (key: keyof HomeContent, label: string, hint?: string, type?: FieldDef<HomeContent>['type']) => (
+    <Input<HomeContent> id={`home-${key}`} def={{ key, label, hint, type, wide: true }} value={v[key]} onChange={(x) => setV((s) => ({ ...s, [key]: x }))} />
+  );
+  return (
+    <EditorShell section="home" title="Homepage Headline" intro="The first thing visitors read at the top of the homepage." value={v} initial={initial}>
+      <section className="card grid gap-4 p-5 sm:p-6">
+        {field('badge', 'Small label above the headline (optional)', 'e.g. Trusted Senior Care. Leave empty to hide.')}
+        {field('headline', 'Headline')}
+        {field('intro', 'Introduction', 'One or two sentences under the headline.', 'textarea')}
+      </section>
+      <section className="card p-5 sm:p-6" aria-label="Preview">
+        <p className="mb-3 text-[0.75rem] font-semibold uppercase tracking-[0.14em] text-slate">Preview</p>
+        {v.badge && <span className="pill-label mb-4">{v.badge}</span>}
+        <p className="t-display text-[2rem] sm:text-[2.5rem]">{v.headline || 'Headline'}</p>
+        <p className="mt-3 max-w-[520px] text-slate-muted">{v.intro}</p>
+      </section>
+    </EditorShell>
+  );
+}
+
+/* ── Why Choose Us ────────────────────────────────────────────── */
+
+export const WhyEditor = () => (
+  <ListEditor<'why', WhyItem>
+    section="why"
+    title="Why Choose Us"
+    intro="The numbered reasons in the “Why Choose Bina Adult Care” section of the homepage. Four fit best on one row."
+    fields={[
+      { key: 'title', label: 'Title', wide: true },
+      { key: 'text', label: 'Short description', type: 'textarea' },
+    ]}
+    empty={{ title: '', text: '' }}
+    itemLabel={(w, i) => w.title || `Reason ${i + 1}`}
+    emptyText="No reasons — the section shows only its heading."
+    max={8}
+  />
+);
+
+/* ── Locations and settings (both edit the business information) ── */
+
+function useSettingsField(v: Settings, setV: (f: (s: Settings) => Settings) => void) {
+  return (key: keyof Settings, label: string, hint?: string, type?: FieldDef<Settings>['type']) => (
+    <Input<Settings> id={`settings-${key}`} def={{ key, label, hint, type }} value={v[key]} onChange={(x) => setV((s) => ({ ...s, [key]: x }))} />
+  );
+}
+
+export function LocationEditor() {
+  const { get } = useContent();
+  const initial = get('settings');
+  const [v, setV] = useState<Settings>(initial);
+  const field = useSettingsField(v, setV);
+  const saved = `${initial.street}, ${initial.city}, ${initial.state} ${initial.zip}`;
+  return (
+    <EditorShell section="settings" title="Locations" intro="The address and opening hours shown on the Contact page, in the footer and in the map." value={v} initial={initial}>
+      <section className="card grid gap-4 p-5 sm:grid-cols-2 sm:p-6">
+        <h2 className="t-subtitle sm:col-span-2">Bina Adult Care — El Sobrante</h2>
+        {field('street', 'Street')}
+        {field('city', 'City')}
+        {field('state', 'State')}
+        {field('zip', 'ZIP code')}
+        {field('hours', 'Hours', 'e.g. Open 24 hours, 7 days a week.')}
+      </section>
+      <section className="card overflow-hidden">
+        <iframe
+          title={`Map of ${saved}`}
+          src={mapsEmbed.replace(/q=[^&]+/, `q=${encodeURIComponent(saved)}`)}
+          className="block h-[280px] w-full"
+          loading="lazy"
+          referrerPolicy="no-referrer-when-downgrade"
+        />
+        <p className="px-5 py-3 text-sm text-slate">Map of the saved address. It updates after you save.</p>
+      </section>
+    </EditorShell>
+  );
+}
 
 export function SettingsEditor() {
   const { get } = useContent();
   const initial = get('settings');
   const [v, setV] = useState<Settings>(initial);
-  const field = (key: keyof Settings, label: string, hint?: string, type?: FieldDef<Settings>['type']) => (
-    <Input<Settings> id={`settings-${key}`} def={{ key, label, hint, type }} value={v[key]} onChange={(x) => setV((s) => ({ ...s, [key]: x }))} />
-  );
+  const field = useSettingsField(v, setV);
   return (
-    <EditorShell section="settings" title="Business information" intro="Used in the header, footer, contact page and everywhere the phone number or address appears." value={v} initial={initial}>
+    <EditorShell section="settings" title="Settings" intro="Contact details and social links used in the header, footer, contact page and business card." value={v} initial={initial}>
       <section className="card grid gap-4 p-5 sm:grid-cols-2 sm:p-6">
         <h2 className="t-subtitle sm:col-span-2">Contact</h2>
         {field('phone', 'Phone', 'Include the area code, e.g. 510 710 4392.')}
         {field('email', 'Email', undefined, 'email')}
-        {field('hours', 'Hours', 'e.g. Open 24 hours, 7 days a week.')}
-      </section>
-      <section className="card grid gap-4 p-5 sm:grid-cols-2 sm:p-6">
-        <h2 className="t-subtitle sm:col-span-2">Address</h2>
-        {field('street', 'Street')}
-        {field('city', 'City')}
-        {field('state', 'State')}
-        {field('zip', 'ZIP code')}
       </section>
       <section className="card grid gap-4 p-5 sm:grid-cols-2 sm:p-6">
         <h2 className="t-subtitle sm:col-span-2">Social media</h2>
@@ -307,7 +392,7 @@ export function ServicesEditor() {
   );
 }
 
-/* ── Gallery ───────────────────────────────────────────────── */
+/* ── Photo uploads (gallery and hero images) ─────────────────── */
 
 const readBase64 = (file: File) =>
   new Promise<string>((resolve, reject) => {
@@ -317,15 +402,11 @@ const readBase64 = (file: File) =>
     r.readAsDataURL(file);
   });
 
-export function GalleryEditor() {
-  const { get } = useContent();
-  const initial = get('gallery');
-  const [items, setItems] = useState<GalleryItem[]>(initial);
+/** Upload button: sends each chosen photo to the private store and reports its new image name. */
+function UploadButton({ onUploaded, label = 'Upload photos' }: { onUploaded: (image: string) => void; label?: string }) {
   const [uploading, setUploading] = useState(0);
   const [error, setError] = useState('');
   const fileRef = useRef<HTMLInputElement>(null);
-
-  const update = (i: number, patch: Partial<GalleryItem>) => setItems((xs) => xs.map((x, j) => (j === i ? { ...x, ...patch } : x)));
 
   async function onFiles(files: FileList | null) {
     if (!files?.length) return;
@@ -341,8 +422,8 @@ export function GalleryEditor() {
       }
       setUploading((n) => n + 1);
       try {
-        const r = await adminCall<{ image: string; url: string }>('upload', { type: file.type, data: await readBase64(file) });
-        setItems((xs) => [{ image: r.image, url: r.url, alt: '', category: 'living', hidden: false }, ...xs]);
+        const r = await adminCall<{ image: string }>('upload', { type: file.type, data: await readBase64(file) });
+        onUploaded(r.image);
       } catch (e) {
         setError(`${file.name}: ${(e as Error).message}`);
       } finally {
@@ -351,6 +432,101 @@ export function GalleryEditor() {
     }
     if (fileRef.current) fileRef.current.value = '';
   }
+
+  return (
+    <div className="space-y-3">
+      <label className="btn-primary btn-sm cursor-pointer has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-brand-600">
+        {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <ImagePlus className="h-4 w-4" aria-hidden />}
+        {uploading ? `Uploading ${uploading}…` : label}
+        <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp" multiple className="sr-only" onChange={(e) => onFiles(e.target.files)} />
+      </label>
+      {error && <p role="alert" className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-900">{error}</p>}
+    </div>
+  );
+}
+
+function PhotoCard({ image, hidden, badge, children }: { image: string; hidden: boolean; badge?: string; children: ReactNode }) {
+  return (
+    <li className={`card overflow-hidden ${hidden ? 'opacity-60' : ''}`}>
+      <div className="relative aspect-[4/3] bg-brand-50">
+        <img src={previewSrc(image)} alt="" loading="lazy" className="h-full w-full object-cover" />
+        {hidden && <span className="absolute left-3 top-3 rounded-full bg-navy/80 px-2.5 py-1 text-xs font-medium text-white">Hidden</span>}
+        {image.startsWith('cms-') && <span className="absolute right-3 top-3 rounded-full bg-champagne px-2.5 py-1 text-xs font-medium text-navy">{badge ?? 'Uploaded'}</span>}
+      </div>
+      <div className="space-y-3 p-4">{children}</div>
+    </li>
+  );
+}
+
+const iconBtn = 'grid h-9 w-9 place-items-center rounded-lg text-navy hover:bg-cream';
+
+/* ── Hero images ───────────────────────────────────────────────── */
+
+export function HeroEditor() {
+  const { get } = useContent();
+  const initial = get('hero');
+  const gallery = get('gallery');
+  const [items, setItems] = useState<HeroItem[]>(initial);
+  const update = (i: number, patch: Partial<HeroItem>) => setItems((xs) => xs.map((x, j) => (j === i ? { ...x, ...patch } : x)));
+  const available = gallery.filter((g) => !items.some((h) => h.image === g.image));
+
+  return (
+    <EditorShell
+      section="hero"
+      title="Hero Images"
+      intro="The photo slideshow at the top of the homepage. Square-ish photos of the home work best. Hidden photos stay here but are not shown."
+      value={items}
+      initial={initial}
+    >
+      <div className="card flex flex-wrap items-end justify-between gap-4 p-5">
+        <div className="min-w-[220px] flex-1">
+          <label htmlFor="hero-add" className="field-label">Add a photo from the gallery</label>
+          <select
+            id="hero-add"
+            className="field"
+            value=""
+            onChange={(e) => {
+              const g = gallery.find((x) => x.image === e.target.value);
+              if (g) setItems((xs) => [...xs, { image: g.image, alt: g.alt, hidden: false }]);
+            }}
+          >
+            <option value="">Choose a photo…</option>
+            {available.map((g) => <option key={g.image} value={g.image}>{g.alt}</option>)}
+          </select>
+        </div>
+        <UploadButton label="Upload new" onUploaded={(image) => setItems((xs) => [...xs, { image, alt: '', hidden: false }])} />
+      </div>
+
+      <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {items.map((h, i) => (
+          <PhotoCard key={h.image} image={h.image} hidden={h.hidden}>
+            <div>
+              <label htmlFor={`hero-alt-${i}`} className="field-label">Slide {i + 1} — description</label>
+              <input id={`hero-alt-${i}`} className="field" value={h.alt} placeholder="e.g. Bright living room with fireplace" onChange={(e) => update(i, { alt: e.target.value })} />
+            </div>
+            <div className="flex items-center justify-end gap-1">
+              <button type="button" className={iconBtn} onClick={() => update(i, { hidden: !h.hidden })} aria-label={h.hidden ? 'Show slide' : 'Hide slide'} title={h.hidden ? 'Show on website' : 'Hide from website'}>
+                {h.hidden ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+              </button>
+              <ItemControls i={i} n={items.length} label={h.alt || `slide ${i + 1}`} onMove={(to) => setItems((xs) => move(xs, i, to))} onRemove={() => {
+                if (window.confirm('Remove this slide?')) setItems((xs) => xs.filter((_, j) => j !== i));
+              }} />
+            </div>
+          </PhotoCard>
+        ))}
+      </ul>
+    </EditorShell>
+  );
+}
+
+/* ── Gallery ───────────────────────────────────────────────────── */
+
+export function GalleryEditor() {
+  const { get } = useContent();
+  const initial = get('gallery');
+  const [items, setItems] = useState<GalleryItem[]>(initial);
+
+  const update = (i: number, patch: Partial<GalleryItem>) => setItems((xs) => xs.map((x, j) => (j === i ? { ...x, ...patch } : x)));
 
   return (
     <EditorShell
@@ -362,51 +538,33 @@ export function GalleryEditor() {
     >
       <div className="card flex flex-wrap items-center justify-between gap-4 p-5">
         <p className="text-sm text-slate">JPG, PNG or WebP, up to 3 MB each. New photos appear at the top.</p>
-        <label className="btn-primary btn-sm cursor-pointer has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-brand-600">
-          {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <ImagePlus className="h-4 w-4" aria-hidden />}
-          {uploading ? `Uploading ${uploading}…` : 'Upload photos'}
-          <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp" multiple className="sr-only" onChange={(e) => onFiles(e.target.files)} />
-        </label>
+        <UploadButton onUploaded={(image) => setItems((xs) => [{ image, url: '', alt: '', category: 'living', hidden: false }, ...xs])} />
       </div>
-      {error && <p role="alert" className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-900">{error}</p>}
 
-      <ul className="grid gap-4 sm:grid-cols-2">
+      <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {items.map((p, i) => (
-          <li key={p.image} className={`card overflow-hidden ${p.hidden ? 'opacity-60' : ''}`}>
-            <div className="relative aspect-[4/3] bg-brand-50">
-              <img src={p.url || `/images/${p.image}-480.webp`} alt="" loading="lazy" className="h-full w-full object-cover" />
-              {p.hidden && <span className="absolute left-3 top-3 rounded-full bg-navy/80 px-2.5 py-1 text-xs font-medium text-white">Hidden</span>}
-              {p.url && <span className="absolute right-3 top-3 rounded-full bg-champagne px-2.5 py-1 text-xs font-medium text-navy">New upload</span>}
+          <PhotoCard key={p.image} image={p.image} hidden={p.hidden}>
+            <div>
+              <label htmlFor={`alt-${i}`} className="field-label">Description</label>
+              <input id={`alt-${i}`} className="field" value={p.alt} placeholder="e.g. Bright bedroom with garden view" onChange={(e) => update(i, { alt: e.target.value })} />
             </div>
-            <div className="space-y-3 p-4">
-              <div>
-                <label htmlFor={`alt-${i}`} className="field-label">Description</label>
-                <input id={`alt-${i}`} className="field" value={p.alt} placeholder="e.g. Bright bedroom with garden view" onChange={(e) => update(i, { alt: e.target.value })} />
+            <div className="flex flex-wrap items-end justify-between gap-2">
+              <div className="min-w-[150px] flex-1">
+                <label htmlFor={`cat-${i}`} className="field-label">Category</label>
+                <select id={`cat-${i}`} className="field" value={p.category} onChange={(e) => update(i, { category: e.target.value as GalleryItem['category'] })}>
+                  {Object.entries(GALLERY_CATEGORIES).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
+                </select>
               </div>
-              <div className="flex flex-wrap items-end justify-between gap-2">
-                <div className="min-w-[160px] flex-1">
-                  <label htmlFor={`cat-${i}`} className="field-label">Category</label>
-                  <select id={`cat-${i}`} className="field" value={p.category} onChange={(e) => update(i, { category: e.target.value as GalleryItem['category'] })}>
-                    {Object.entries(GALLERY_CATEGORIES).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
-                  </select>
-                </div>
-                <div className="flex items-center gap-1">
-                  <button
-                    type="button"
-                    className="grid h-9 w-9 place-items-center rounded-lg text-navy hover:bg-cream"
-                    onClick={() => update(i, { hidden: !p.hidden })}
-                    aria-label={p.hidden ? 'Show photo on website' : 'Hide photo from website'}
-                    title={p.hidden ? 'Show on website' : 'Hide from website'}
-                  >
-                    {p.hidden ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
-                  </button>
-                  <ItemControls i={i} n={items.length} label={p.alt || `photo ${i + 1}`} onMove={(to) => setItems((xs) => move(xs, i, to))} onRemove={() => {
-                    if (window.confirm('Remove this photo from the gallery?')) setItems((xs) => xs.filter((_, j) => j !== i));
-                  }} />
-                </div>
+              <div className="flex items-center gap-1">
+                <button type="button" className={iconBtn} onClick={() => update(i, { hidden: !p.hidden })} aria-label={p.hidden ? 'Show photo on website' : 'Hide photo from website'} title={p.hidden ? 'Show on website' : 'Hide from website'}>
+                  {p.hidden ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+                </button>
+                <ItemControls i={i} n={items.length} label={p.alt || `photo ${i + 1}`} onMove={(to) => setItems((xs) => move(xs, i, to))} onRemove={() => {
+                  if (window.confirm('Remove this photo from the gallery?')) setItems((xs) => xs.filter((_, j) => j !== i));
+                }} />
               </div>
             </div>
-          </li>
+          </PhotoCard>
         ))}
       </ul>
     </EditorShell>

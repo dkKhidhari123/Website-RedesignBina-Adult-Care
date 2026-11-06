@@ -9,35 +9,35 @@ import {
   createSessionCookie,
   loginBlocked,
   recordLoginFailure,
-  supabase,
-  supabaseConfigured,
   verifyAdmin,
 } from './_lib/server.js';
+import {
+  allRecords,
+  ID_PATTERN,
+  INBOX,
+  listFiles,
+  readFile,
+  readJson,
+  recordPath,
+  removeFile,
+  storeConfigured,
+  writeFile,
+  writeJson,
+  type InboxRecord,
+  type InboxTable,
+} from './_lib/store.js';
 
 /**
- * POST /api/admin — every admin dashboard action.
- * Body: { action: string, ...params }.
- * "login" checks the Admin ID and password and sets an HttpOnly session cookie;
- * every other action requires that cookie.
+ * /api/admin — every admin dashboard action.
  *
- * Env: ADMIN_USERNAME, ADMIN_PASSWORD, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY,
+ * POST { action, ...params }: "login" checks the Admin ID and password and sets an HttpOnly
+ * session cookie; every other action requires that cookie.
+ * GET ?resume=<id> / ?image=<cms-id>: streams a private file to a signed-in admin.
+ *
+ * Env: ADMIN_USERNAME, ADMIN_PASSWORD, BLOB_READ_WRITE_TOKEN,
  *      VERCEL_DEPLOY_HOOK_URL (for "Publish")
  */
 
-const TABLES = {
-  contact_submissions: ['new', 'contacted', 'closed'],
-  visit_requests: ['requested', 'confirmed', 'completed', 'cancelled'],
-  job_applications: ['new', 'reviewing', 'interview', 'hired', 'closed'],
-} as const;
-type Table = keyof typeof TABLES;
-
-const NEW_STATUS: Record<Table, string> = {
-  contact_submissions: 'new',
-  visit_requests: 'requested',
-  job_applications: 'new',
-};
-
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const PAGE_SIZE = 25;
 
 class HttpError extends Error {
@@ -46,38 +46,30 @@ class HttpError extends Error {
   }
 }
 
-const asTable = (v: unknown): Table => {
-  if (typeof v === 'string' && v in TABLES) return v as Table;
+const asTable = (v: unknown): InboxTable => {
+  if (typeof v === 'string' && v in INBOX) return v as InboxTable;
   throw new HttpError(400, 'Unknown list.');
 };
 const asId = (v: unknown): string => {
-  if (typeof v === 'string' && UUID.test(v)) return v;
+  if (typeof v === 'string' && ID_PATTERN.test(v)) return v;
   throw new HttpError(400, 'Invalid id.');
 };
 
-async function count(table: Table, status?: string) {
-  const filter = status ? `&status=eq.${status}` : '';
-  const r = await supabase(`/rest/v1/${table}?select=id${filter}&limit=1`, { headers: { Prefer: 'count=exact' } });
-  return Number(r.headers.get('content-range')?.split('/')[1] ?? 0);
+interface ContentDoc {
+  value: unknown;
+  updated_at: string;
+  updated_by: string;
 }
+const contentPath = (key: string) => `content/${key}.json`;
 
-async function recent(table: Table) {
-  const r = await supabase(`/rest/v1/${table}?select=*&order=created_at.desc&limit=5`);
-  return r.json();
-}
+const getMeta = async () => ((await readJson<ContentDoc>(contentPath('meta')))?.value ?? {}) as Record<string, unknown>;
+const putContent = (key: string, value: unknown, by: string) =>
+  writeJson(contentPath(key), { value, updated_at: new Date().toISOString(), updated_by: by } satisfies ContentDoc);
 
-async function getMeta() {
-  const r = await supabase(`/rest/v1/site_content?key=eq.meta&select=value`);
-  const rows = (await r.json()) as { value: Record<string, unknown> }[];
-  return rows[0]?.value ?? {};
-}
-
-async function putContent(key: string, value: unknown, by: string) {
-  await supabase(`/rest/v1/site_content`, {
-    method: 'POST',
-    headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },
-    body: JSON.stringify({ key, value, updated_at: new Date().toISOString(), updated_by: by }),
-  });
+async function getRecord(table: InboxTable, id: string) {
+  const r = await readJson<InboxRecord>(recordPath(table, id));
+  if (!r) throw new HttpError(404, 'That entry no longer exists.');
+  return r;
 }
 
 const IMAGE_TYPES: Record<string, { ext: string; magic: (b: Buffer) => boolean }> = {
@@ -86,16 +78,50 @@ const IMAGE_TYPES: Record<string, { ext: string; magic: (b: Buffer) => boolean }
   'image/webp': { ext: 'webp', magic: (b) => b.subarray(0, 4).toString() === 'RIFF' && b.subarray(8, 12).toString() === 'WEBP' },
 };
 
+/** GET: private files for signed-in admins only. */
+async function download(req: VercelRequest, res: VercelResponse) {
+  if (!verifyAdmin(req.headers.cookie)) throw new HttpError(401, 'Please sign in.');
+  const { resume, image } = req.query;
+
+  if (typeof resume === 'string') {
+    const rec = await getRecord('job_applications', asId(resume));
+    const file = typeof rec.resume_path === 'string' ? await readFile(rec.resume_path) : null;
+    if (!file) throw new HttpError(404, 'No resume on file.');
+    const name = String(rec.resume_filename || 'resume').replace(/[^\w.\- ]+/g, '_');
+    res.setHeader('Content-Type', file.contentType);
+    res.setHeader('Content-Disposition', `attachment; filename="${name}"`);
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    return res.status(200).send(file.body);
+  }
+
+  if (typeof image === 'string' && /^cms-[a-z0-9-]+$/.test(image)) {
+    const pathname = (await listFiles('uploads/')).find((p) => p.startsWith(`uploads/${image}.`));
+    const file = pathname ? await readFile(pathname) : null;
+    if (!file) throw new HttpError(404, 'Photo not found.');
+    res.setHeader('Content-Type', file.contentType);
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('Cache-Control', 'private, max-age=3600');
+    return res.status(200).send(file.body);
+  }
+
+  throw new HttpError(400, 'Unknown file.');
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Cache-Control', 'no-store');
-  if (req.method !== 'POST') {
-    res.setHeader('Allow', 'POST');
+  if (req.method !== 'POST' && req.method !== 'GET') {
+    res.setHeader('Allow', 'GET, POST');
     return res.status(405).json({ ok: false, error: 'Method not allowed' });
   }
   if (!adminLoginConfigured())
     return res.status(503).json({ ok: false, error: 'The admin login is not set up yet (ADMIN_USERNAME / ADMIN_PASSWORD).' });
 
   try {
+    if (req.method === 'GET') {
+      if (!storeConfigured()) throw new HttpError(503, 'Storage is not connected yet.');
+      return await download(req, res);
+    }
+
     const body = (typeof req.body === 'string' ? JSON.parse(req.body) : req.body) ?? {};
     const action = String(body.action ?? '');
     // x-real-ip is set by Vercel's edge (clients cannot override it).
@@ -123,80 +149,62 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     if (action === 'me') return res.status(200).json({ ok: true, username: admin.username });
 
-    // Everything below reads or writes the database.
-    if (!supabaseConfigured())
-      throw new HttpError(503, 'The database is not connected yet (SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY).');
+    // Everything below reads or writes stored data.
+    if (!storeConfigured())
+      throw new HttpError(503, 'Storage is not connected yet. In Vercel → Storage, create a private Blob store and connect it to this project.');
 
     switch (action) {
-
       case 'dashboard': {
-        const tables = Object.keys(TABLES) as Table[];
-        const [counts, recents, meta] = await Promise.all([
-          Promise.all(tables.map(async (t) => [t, { open: await count(t, NEW_STATUS[t]), total: await count(t) }] as const)),
-          Promise.all(tables.map(async (t) => [t, await recent(t)] as const)),
-          getMeta(),
-        ]);
-        return res.status(200).json({ ok: true, counts: Object.fromEntries(counts), recent: Object.fromEntries(recents), meta });
+        const tables = Object.keys(INBOX) as InboxTable[];
+        const all = await Promise.all(tables.map((t) => allRecords(t)));
+        const counts = Object.fromEntries(tables.map((t, i) => [t, { open: all[i].filter((r) => r.status === INBOX[t][0]).length, total: all[i].length }]));
+        const recent = Object.fromEntries(tables.map((t, i) => [t, all[i].slice(0, 5)]));
+        return res.status(200).json({ ok: true, counts, recent });
       }
 
       case 'list': {
         const table = asTable(body.table);
         const page = Math.max(0, Math.floor(Number(body.page) || 0));
-        const status = typeof body.status === 'string' && (TABLES[table] as readonly string[]).includes(body.status) ? body.status : '';
-        const filter = status ? `&status=eq.${status}` : '';
-        const r = await supabase(
-          `/rest/v1/${table}?select=*${filter}&order=created_at.desc&limit=${PAGE_SIZE}&offset=${page * PAGE_SIZE}`,
-          { headers: { Prefer: 'count=exact' } },
-        );
-        const total = Number(r.headers.get('content-range')?.split('/')[1] ?? 0);
-        return res.status(200).json({ ok: true, rows: await r.json(), total, pageSize: PAGE_SIZE, statuses: TABLES[table] });
+        const status = typeof body.status === 'string' && (INBOX[table] as readonly string[]).includes(body.status) ? body.status : '';
+        const rows = (await allRecords(table)).filter((r) => !status || r.status === status);
+        return res.status(200).json({
+          ok: true,
+          rows: rows.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE),
+          total: rows.length,
+          pageSize: PAGE_SIZE,
+          statuses: INBOX[table],
+        });
       }
 
       case 'update': {
         const table = asTable(body.table);
-        const id = asId(body.id);
-        const patch: Record<string, string> = {};
+        const rec = await getRecord(table, asId(body.id));
         if (body.status !== undefined) {
-          if (!(TABLES[table] as readonly string[]).includes(body.status)) throw new HttpError(400, 'Invalid status.');
-          patch.status = body.status;
+          if (!(INBOX[table] as readonly string[]).includes(body.status)) throw new HttpError(400, 'Invalid status.');
+          rec.status = body.status;
         }
-        if (body.staff_notes !== undefined) patch.staff_notes = String(body.staff_notes).slice(0, 4000);
-        if (!Object.keys(patch).length) throw new HttpError(400, 'Nothing to update.');
-        await supabase(`/rest/v1/${table}?id=eq.${id}`, { method: 'PATCH', headers: { Prefer: 'return=minimal' }, body: JSON.stringify(patch) });
+        if (body.staff_notes !== undefined) rec.staff_notes = String(body.staff_notes).slice(0, 4000);
+        await writeJson(recordPath(table, rec.id), rec);
         return res.status(200).json({ ok: true });
       }
 
       case 'delete': {
         const table = asTable(body.table);
-        const id = asId(body.id);
-        if (table === 'job_applications') {
-          const r = await supabase(`/rest/v1/job_applications?id=eq.${id}&select=resume_path`);
-          const [row] = (await r.json()) as { resume_path: string | null }[];
-          if (row?.resume_path) await supabase(`/storage/v1/object/resumes/${row.resume_path}`, { method: 'DELETE' }).catch(() => {});
-        }
-        await supabase(`/rest/v1/${table}?id=eq.${id}`, { method: 'DELETE', headers: { Prefer: 'return=minimal' } });
+        const rec = await getRecord(table, asId(body.id));
+        if (typeof rec.resume_path === 'string') await removeFile(rec.resume_path).catch(() => {});
+        await removeFile(recordPath(table, rec.id));
         return res.status(200).json({ ok: true });
       }
 
       case 'resumeUrl': {
         const id = asId(body.id);
-        const r = await supabase(`/rest/v1/job_applications?id=eq.${id}&select=resume_path,resume_filename`);
-        const [row] = (await r.json()) as { resume_path: string | null; resume_filename: string | null }[];
-        if (!row?.resume_path) throw new HttpError(404, 'No resume on file.');
-        const s = await supabase(`/storage/v1/object/sign/resumes/${row.resume_path}`, {
-          method: 'POST',
-          body: JSON.stringify({ expiresIn: 300 }),
-        });
-        const { signedURL } = (await s.json()) as { signedURL: string };
-        const base = process.env.SUPABASE_URL!.replace(/\/$/, '');
-        const download = row.resume_filename ? `&download=${encodeURIComponent(row.resume_filename)}` : '';
-        return res.status(200).json({ ok: true, url: `${base}/storage/v1${signedURL}${download}` });
+        return res.status(200).json({ ok: true, url: `/api/admin?resume=${id}` });
       }
 
       case 'getContent': {
-        const r = await supabase(`/rest/v1/site_content?select=key,value,updated_at,updated_by`);
-        const rows = (await r.json()) as { key: string; value: unknown; updated_at: string; updated_by: string }[];
-        return res.status(200).json({ ok: true, content: Object.fromEntries(rows.map((x) => [x.key, x])) });
+        const paths = (await listFiles('content/')).filter((p) => p.endsWith('.json'));
+        const docs = await Promise.all(paths.map(async (p) => [p.slice(8, -5), await readJson<ContentDoc>(p)] as const));
+        return res.status(200).json({ ok: true, content: Object.fromEntries(docs.filter(([, d]) => d)) });
       }
 
       case 'saveContent': {
@@ -213,15 +221,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const bytes = Buffer.from(body.data, 'base64');
         if (bytes.length > 3 * 1024 * 1024) throw new HttpError(400, 'Please upload a photo smaller than 3 MB.');
         if (!type.magic(bytes)) throw new HttpError(400, 'That file does not look like a valid photo.');
-        const id = randomUUID().slice(0, 12);
-        const path = `gallery/cms-${id}.${type.ext}`;
-        await supabase(`/storage/v1/object/site-images/${path}`, {
-          method: 'POST',
-          headers: { 'Content-Type': String(body.type), 'x-upsert': 'false' },
-          body: bytes,
-        });
-        const base = process.env.SUPABASE_URL!.replace(/\/$/, '');
-        return res.status(200).json({ ok: true, image: `cms-${id}`, url: `${base}/storage/v1/object/public/site-images/${path}` });
+        const image = `cms-${randomUUID().slice(0, 12)}`;
+        await writeFile(`uploads/${image}.${type.ext}`, bytes, String(body.type));
+        return res.status(200).json({ ok: true, image, url: `/api/admin?image=${image}` });
       }
 
       case 'publish': {

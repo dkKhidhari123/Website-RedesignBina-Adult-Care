@@ -9,3 +9,4 @@ dist
 *.tsbuildinfo
 dist-server
 src-images/cms-*
+.data

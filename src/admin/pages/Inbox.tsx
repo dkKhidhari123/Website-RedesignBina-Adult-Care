@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { ChevronLeft, ChevronRight, Download, Loader2, Mail, Phone, Trash2, X } from 'lucide-react';
+import { PageHeader } from '../AdminLayout';
 import { adminCall, formatDate, STATUS_STYLES, TABLE_LABELS, type InboxTable } from '../api';
 
 type Rec = Record<string, string | null>;
@@ -74,11 +75,10 @@ function Detail({ table, row, statuses, onChange, onClose, onDeleted }: {
       await adminCall('update', { table, id: row.id, staff_notes: notes });
       onChange({ staff_notes: notes });
     });
-  const download = () =>
-    run('resume', async () => {
-      const { url } = await adminCall<{ url: string }>('resumeUrl', { id: row.id });
-      window.open(url, '_blank', 'noopener');
-    });
+  // The file is served privately by /api/admin to signed-in admins as a download.
+  const download = () => run('resume', async () => {
+    window.location.href = `/api/admin?resume=${encodeURIComponent(String(row.id))}`;
+  });
   const remove = () => {
     if (!window.confirm(`Permanently delete this ${table === 'job_applications' ? 'application and its resume' : 'entry'}? This cannot be undone.`)) return;
     run('delete', async () => {
@@ -183,12 +183,10 @@ export function Inbox({ table }: { table: InboxTable }) {
   const pages = Math.max(1, Math.ceil(total / pageSize));
 
   return (
-    <div className="mx-auto max-w-6xl">
+    <div className="mx-auto max-w-7xl">
+      <PageHeader title={TABLE_LABELS[table]} subtitle="Submitted through the website forms. Only signed-in admins can see these." />
       <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="t-page text-[2rem]">{TABLE_LABELS[table]}</h1>
-          <p className="mt-1 text-slate">{total} {total === 1 ? 'entry' : 'entries'}{status ? ` · ${status}` : ''}</p>
-        </div>
+        <p className="text-slate">{total} {total === 1 ? 'entry' : 'entries'}{status ? ` · ${status}` : ''}</p>
         <div>
           <label htmlFor="status-filter" className="sr-only">Filter by status</label>
           <select

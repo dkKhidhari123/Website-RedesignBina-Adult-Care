@@ -24,7 +24,7 @@ export async function adminCall<T = Record<string, unknown>>(action: string, par
 
 export const TABLE_LABELS = {
   contact_submissions: 'Messages',
-  visit_requests: 'Visit requests',
+  visit_requests: 'Visit Requests',
   job_applications: 'Applications',
 } as const;
 export type InboxTable = keyof typeof TABLE_LABELS;

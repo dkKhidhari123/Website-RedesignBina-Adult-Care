@@ -117,7 +117,7 @@ export const CAREER_PERKS = [
 
 
 /* ── Homepage hero slider: real photos of the home ─────────── */
-export const heroSlides: { image: ImageName; alt: string; caption?: string }[] = [
+const defaultHeroSlides: { image: ImageName; alt: string; caption?: string }[] = [
   { image: 'home-entrance', alt: 'Front entrance of the Bina Adult Care home with an accessible ramp' },
   { image: 'living-room', alt: 'Bright living room with sofas, rug and fireplace' },
   { image: 'dining-room', alt: 'Dining table beside sliding glass doors to the garden' },
@@ -125,6 +125,25 @@ export const heroSlides: { image: ImageName; alt: string; caption?: string }[] =
   { image: 'bedroom', alt: 'Furnished bedroom with natural light' },
   { image: 'gallery-0869', alt: 'Spacious bedroom with mirrored closet doors' },
   { image: 'home-exterior', alt: 'Exterior of the home with arched porch and garden' },
+];
+export const heroSlides = cms.hero
+  ? cms.hero.filter((h) => !h.hidden).map((h) => ({ image: h.image as ImageName, alt: h.alt }))
+  : defaultHeroSlides;
+export const defaultHeroImages = defaultHeroSlides.map((h) => ({ image: h.image as string, alt: h.alt, hidden: false }));
+
+/* ── Homepage headline and "Why Choose" reasons ─────────────── */
+export const homeIntro = cms.home ?? {
+  badge: 'Trusted Senior Care',
+  headline: 'Compassionate Care. Comfortable Living. Peace of Mind.',
+  intro:
+    'Personalized Residential Care and Home Care for senior adults, with dignity, respect and compassion. Available 24/7 in El Sobrante, California.',
+};
+
+export const whyChoose = cms.why ?? [
+  { title: 'Personalized Attention', text: 'Care shaped around each person, not a standard routine.' },
+  { title: 'Comfortable Environment', text: 'A calm, homelike setting that feels safe and familiar.' },
+  { title: 'Compassionate Caregivers', text: 'Every resident receives attention with dignity and respect.' },
+  { title: 'Family-Focused Support', text: 'Open communication so families stay informed and involved.' },
 ];
 
 /* ── Services ──────────────────────────────────────────────────
